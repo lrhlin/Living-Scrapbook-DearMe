@@ -1,0 +1,9 @@
+node_modules/
+venv/
+.env
+__pycache__/
+*.pyc
+.next/
+uploads/
+*.egg-info/
+dist/
