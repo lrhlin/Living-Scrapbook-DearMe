@@ -23,12 +23,22 @@
     $('#clear-sticker-selection').disabled=book.busy||!amount;
     $('#entry-character-count').textContent=$('#entry-text').value.length.toLocaleString()+' / 20,000';
     $('#entry-add').disabled=book.busy||(!amount&&!$('#entry-text').value.trim());
+    $('#draft-entry-text').disabled=book.busy||!$('#entry-phrase').value.trim();
   }
-  function setBusy(busy) {
+  function setBusy(busy,operation='save') {
     book.busy=busy;
     for (const field of document.querySelectorAll('#entry-form input,#entry-form textarea,#sticker-picker-grid input')) field.disabled=busy;
-    $('#entry-add span').textContent=busy?'Arranging pages…':'Add';
+    $('#entry-add span').textContent=busy&&operation==='save'?'Arranging pages…':'Add';
+    $('#draft-entry-text').disabled=busy;
     $('#entry-saving').hidden=!busy;
+    $('#entry-saving h3').textContent=busy&&operation==='draft'?'Writing your draft.':'Putting your pages together.';
+    $('#entry-saving p').textContent=busy&&operation==='draft'?'Bob is shaping your phrase with the selected writing style.':'Arranging the text, placing your stickers, and saving the entry locally.';
+    updateControls();
+  }
+  function updateWritingMode() {
+    const phraseMode=$('#entry-mode').value==='phrase';
+    $('#ai-writing-panel').hidden=!phraseMode;
+    $('#writing-samples-panel').hidden=$('#entry-writing-style').value!=='personal';
     updateControls();
   }
   function renderPicker() {
@@ -99,7 +109,30 @@
     if (scroll) $('#entry-viewer').scrollIntoView({behavior:smooth(),block:'start'});
   }
   function clearDraft() {
-    $('#entry-form').reset();$('#entry-date').value=today();book.selected.clear();renderPicker();
+    $('#entry-form').reset();$('#entry-date').value=today();book.selected.clear();updateWritingMode();renderPicker();
+  }
+  async function draftStory() {
+    if (book.busy) return;
+    const phrase=$('#entry-phrase').value.trim(),style=$('#entry-writing-style').value;
+    const files=style==='personal'?Array.from($('#entry-style-samples').files):[];
+    if (!phrase) {error('Add a phrase or a few memory notes first.');return;}
+    if (style==='personal'&&(files.length<1||files.length>5)) {error('Choose 1–5 .txt or .md samples to learn your writing style.');return;}
+    if (files.some(file=>file.size>128*1024)) {error('Each writing sample must be smaller than 128 KB.');return;}
+    $('#entry-error').hidden=true;setBusy(true,'draft');
+    try {
+      const samples=await Promise.all(files.map(file=>file.text()));
+      if (samples.some(sample=>sample.length>12_000)||samples.reduce((total,sample)=>total+sample.length,0)>30_000) {
+        throw new Error('Keep each sample under 12,000 characters and all samples under 30,000 characters.');
+      }
+      const draft=await bookApi('/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        phrase,style,samples,title:$('#entry-title').value,date:$('#entry-date').value,
+        sticker_labels:[...book.selected.values()].map(item=>item.label)
+      })});
+      $('#entry-text').value=draft.text;
+      if (!$('#entry-title').value.trim()&&draft.title) $('#entry-title').value=draft.title;
+      updateControls();toast('Draft ready. Edit it before adding it to your scrapbook.');
+    } catch(e) {error(e.message);}
+    finally {setBusy(false);}
   }
   async function addEntry(event) {
     event.preventDefault();if(book.busy||$('#entry-add').disabled)return;
@@ -122,6 +155,10 @@
   $('#entry-date').value=today();
   $('#entry-form').addEventListener('submit',addEntry);
   $('#entry-text').addEventListener('input',updateControls);
+  $('#entry-phrase').addEventListener('input',updateControls);
+  $('#entry-mode').addEventListener('change',updateWritingMode);
+  $('#entry-writing-style').addEventListener('change',updateWritingMode);
+  $('#draft-entry-text').addEventListener('click',draftStory);
   $('#sticker-search').addEventListener('input',renderPicker);
   $('#sticker-source').addEventListener('change',renderPicker);
   $('#clear-sticker-selection').addEventListener('click',()=>{book.selected.clear();renderPicker();});
@@ -141,6 +178,7 @@
     } catch(e){error(e.message);}
   });
   refresh();
+  updateWritingMode();
   const requested=new URLSearchParams(location.search).get('entry');
   if (/^[a-f0-9]{32}$/.test(requested||'')) bookApi('/entries/'+requested).then(entry=>openEntry(entry,false)).catch(e=>error(e.message));
 })();

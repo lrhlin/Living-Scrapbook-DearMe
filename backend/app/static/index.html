@@ -40,7 +40,7 @@
     <header class="topbar"><span class="breadcrumb">Dear Me <span>/</span> <strong id="page-name">My scrapbook</strong></span><span class="connection" id="connection">Checking Bob…</span></header>
     <main id="main">
       <section id="scrapbook-view" class="view">
-        <div class="page-heading compact book-heading"><div><div class="eyebrow"><span></span> YOUR MOMENTS, ON THE PAGE</div><h1>A little story.<br>A place to <em>keep it.</em></h1><p>Pick your stickers, add a few words, and let the pages come together.</p></div><span class="book-local-note"><svg><use href="#i-check"/></svg> Automatically arranged.<br>Saved in your scrapbook.</span></div>
+        <div class="page-heading compact book-heading"><div><div class="eyebrow"><span></span> YOUR MOMENTS, ON THE PAGE</div><h1>A little story.<br>A place to <em>keep it.</em></h1><p>Pick your stickers, write it yourself, or start with a phrase and let AI help.</p></div><span class="book-local-note"><svg><use href="#i-check"/></svg> Automatically arranged.<br>Saved in your scrapbook.</span></div>
         <div class="book-composer">
           <form id="entry-form" class="entry-writing">
             <div class="card-heading"><h2>Tell your story</h2><span class="step-note">A little or a lot.</span></div>
@@ -48,7 +48,32 @@
             <input id="entry-title" maxlength="120" placeholder="A day worth keeping">
             <label for="entry-date">Memory date</label>
             <input id="entry-date" type="date" required>
-            <label for="entry-text">What would you like to remember?</label>
+            <label for="entry-mode">How would you like to write?</label>
+            <select id="entry-mode" class="entry-mode-select">
+              <option value="manual">I’ll write the whole story</option>
+              <option value="phrase">I’ll give a phrase, then AI drafts it</option>
+            </select>
+            <div id="ai-writing-panel" class="ai-writing-panel" hidden>
+              <label for="entry-phrase">Your phrase or notes</label>
+              <textarea id="entry-phrase" rows="3" maxlength="2000" placeholder="Sunday rain, warm noodles, Dad laughing at the old story…"></textarea>
+              <label for="entry-writing-style">Choose a writing style</label>
+              <select id="entry-writing-style">
+                <option value="simple">Simple and concise</option>
+                <option value="detailed">Detailed diary, in sequence</option>
+                <option value="literary">Literary and reflective</option>
+                <option value="li_bai">Classical and expansive · Li Bai inspired</option>
+                <option value="hemingway">Spare and direct · Hemingway inspired</option>
+                <option value="personal">Learn my style from journal samples</option>
+              </select>
+              <div id="writing-samples-panel" class="writing-samples-panel" hidden>
+                <label for="entry-style-samples">Your writing samples <span class="optional">1–5 .txt or .md files</span></label>
+                <input id="entry-style-samples" type="file" accept=".txt,.md,text/plain,text/markdown" multiple>
+                <p>Bob will learn your tone and rhythm for this draft. Samples are not saved.</p>
+              </div>
+              <button type="button" id="draft-entry-text" class="secondary-button draft-entry-button"><svg><use href="#i-spark"/></svg> Draft my story</button>
+              <p class="entry-ai-note">You can edit the draft below before adding it to your scrapbook.</p>
+            </div>
+            <label for="entry-text">Your story</label>
             <textarea id="entry-text" rows="7" maxlength="20000" placeholder="The little details. The people. How it felt…"></textarea>
             <div class="entry-text-meta"><span>Paragraphs and line breaks are welcome.</span><span id="entry-character-count">0 / 20,000</span></div>
             <button type="submit" id="entry-add" class="generate-button" disabled><svg><use href="#i-book"/></svg><span>Add</span></button>
