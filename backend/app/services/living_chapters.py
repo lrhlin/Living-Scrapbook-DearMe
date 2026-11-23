@@ -1,11 +1,4 @@
-"""
-Feature 4: Living Chapters
-
-Scans all entries, groups related ones into long-running story arcs,
-and generates a narrative chapter page for each arc.
-Uses GPT-4 for narrative generation; falls back to a template summary
-when no API key is configured.
-"""
+"""Group related journal entries into chapters with a shared theme and narrative."""
 from __future__ import annotations
 
 from itertools import combinations
@@ -44,12 +37,12 @@ def _cluster_entries(entries: list[Entry]) -> list[list[Entry]]:
         root = find(entry.id)
         clusters.setdefault(root, []).append(entry)
 
-    # Only return clusters with more than 1 entry (actual stories)
+    # A chapter brings together multiple entries.
     return [c for c in clusters.values() if len(c) > 1]
 
 
 def _template_narrative(entries: list[Entry], theme: str) -> str:
-    """Generate a simple template narrative without AI."""
+    """Summarize a chapter's dates, entries and shared theme."""
     sorted_entries = sorted(entries, key=lambda e: e.created_at)
     first = sorted_entries[0]
     last = sorted_entries[-1]
@@ -63,13 +56,13 @@ def _template_narrative(entries: list[Entry], theme: str) -> str:
 
 
 async def _ai_narrative(entries: list[Entry], theme: str) -> str:
-    """Use GPT-4 to write a cohesive chapter narrative."""
+    """Write a chapter with Bob or the local summary template."""
     from app.core.config import settings
-    if not settings.openai_api_key:
+    from app.services.bob_client import BobError, run_bob
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+    if not settings.read_bob_key():
         return _template_narrative(entries, theme)
-
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     summaries = "\n".join(
         f"- [{e.created_at.strftime('%Y-%m-%d')}] {e.title}: {e.text[:200]}"
@@ -80,15 +73,19 @@ async def _ai_narrative(entries: list[Entry], theme: str) -> str:
         f"The following journal entries are connected by the theme '{theme}':\n\n"
         f"{summaries}\n\n"
         "Write a warm, 2–3 sentence narrative that tells the story arc these entries form together. "
-        "Write in second person ('you'). Focus on the emotional journey, not just events."
+        "Write in second person ('you') using only the supplied facts. "
+        'Return only JSON with a single key: {"narrative":"your chapter narrative"}. '
+        "Deliver the narrative as your final response."
     )
-
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200,
-    )
-    return response.choices[0].message.content or _template_narrative(entries, theme)
+    root = Path(settings.upload_dir) / "chapters"
+    root.mkdir(parents=True, exist_ok=True)
+    try:
+        with TemporaryDirectory(dir=root) as workspace:
+            payload, _ = await run_bob(prompt, Path(workspace), images=False)
+        narrative = payload.get("narrative")
+        return narrative[:2000] if isinstance(narrative, str) and narrative.strip() else _template_narrative(entries, theme)
+    except BobError:
+        return _template_narrative(entries, theme)
 
 
 def _infer_chapter_theme(entries: list[Entry]) -> str:
@@ -104,14 +101,14 @@ def _infer_chapter_theme(entries: list[Entry]) -> str:
         if tag_counts[top_tag] > 1:
             return top_tag.title()
 
-    # Fallback: shared location
+    # Use the location for chapters centered on a place.
     locations = [e.location for e in entries if e.location]
     if locations:
         from collections import Counter
         loc = Counter(locations).most_common(1)[0][0]
         return f"Life at {loc}"
 
-    # Fallback: shared person
+    # Use a person's name for chapters centered on shared company.
     people_counts: dict[str, int] = {}
     for e in entries:
         for p in e.people:

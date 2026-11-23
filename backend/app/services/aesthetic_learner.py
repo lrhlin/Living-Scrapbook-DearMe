@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from app.models.schemas import EditAction, StyleProfile
 
-# Single in-memory style profile (one user for now)
+# Style preferences for the local workspace.
 _profile = StyleProfile()
 
 
@@ -74,7 +74,7 @@ def _apply_action(action: EditAction) -> None:
 
 
 def _nudge(field: str, delta: float) -> None:
-    """Clamp-safe increment of a StyleProfile float field."""
+    """Adjust a preference within its 0–1 range."""
     current = getattr(_profile, field)
     setattr(_profile, field, max(0.0, min(1.0, current + delta)))
 

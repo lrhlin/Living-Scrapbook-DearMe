@@ -1,15 +1,7 @@
-"""
-Feature 1: Memory Graph Engine
-
-Builds a graph of entries linked by shared location, people, tags, and time.
-Uses NetworkX for graph computation and optionally GPT to generate
-human-readable connection reasons.
-"""
+"""Connect journal entries through shared locations, people and tags."""
 from __future__ import annotations
 
 from itertools import combinations
-
-import networkx as nx
 
 from app.models.schemas import (
     Entry,
@@ -45,8 +37,6 @@ def build_memory_graph(entries: list[Entry] | None = None) -> MemoryGraph:
     if entries is None:
         entries = list_entries()
 
-    G = nx.Graph()
-
     nodes = [
         MemoryNode(
             entry_id=e.id,
@@ -58,9 +48,6 @@ def build_memory_graph(entries: list[Entry] | None = None) -> MemoryGraph:
         )
         for e in entries
     ]
-
-    for node in nodes:
-        G.add_node(node.entry_id)
 
     edges: list[MemoryEdge] = []
     for a, b in combinations(entries, 2):
@@ -76,13 +63,12 @@ def build_memory_graph(entries: list[Entry] | None = None) -> MemoryGraph:
                     weight=weight,
                 )
             )
-            G.add_edge(a.id, b.id, weight=weight, reason=reason_str)
 
     return MemoryGraph(nodes=nodes, edges=edges)
 
 
 def get_connection_suggestions(entries: list[Entry] | None = None) -> list[ConnectionSuggestion]:
-    """Return AI-style suggestions for entries that share context."""
+    """Suggest connections between entries with shared details."""
     if entries is None:
         entries = list_entries()
 

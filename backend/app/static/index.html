@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#234c40">
+  <meta name="description" content="Collect your stickers and words into automatically arranged scrapbook pages.">
+  <title>Dear Me — My Scrapbook</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23234c40'/%3E%3Cpath d='M10 11q7-3 10 2 4-5 10-2v20q-6-3-10 1-4-4-10-1Z' fill='%23fff6e7'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/assets/studio.css">
+  <link rel="stylesheet" href="/assets/scrapbook.css">
+  <script src="/assets/studio.js" defer></script>
+  <script src="/assets/scrapbook.js" defer></script>
+</head>
+<body>
+  <svg class="icon-defs" aria-hidden="true"><defs>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/><path d="m20 2 .6 1.4L22 4l-1.4.6L20 6l-.6-1.4L18 4l1.4-.6Z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 5c4-2 7-1 9 1 2-2 5-3 9-1v15c-4-2-7-1-9 1-2-2-5-3-9-1Z"/><path d="M12 6v15"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </defs></svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <aside class="sidebar">
+    <a class="brand" href="#scrapbook" aria-label="Dear Me home"><span class="brand-mark"><svg><use href="#i-book"/></svg></span><span>dear me<span class="brand-sub">A LIVING SCRAPBOOK</span></span></a>
+    <div class="sidebar-label">YOUR CREATIVE CORNER</div>
+    <nav aria-label="Main navigation">
+      <a href="#scrapbook" data-view="scrapbook" class="nav-link active"><svg><use href="#i-book"/></svg> My scrapbook <span id="scrapbook-count" class="nav-count">0</span></a>
+      <a href="#studio" data-view="studio" class="nav-link"><svg><use href="#i-spark"/></svg> Sticker studio</a>
+      <a href="#library" data-view="library" class="nav-link"><svg><use href="#i-grid"/></svg> My sticker library <span id="library-count" class="nav-count">0</span></a>
+      <a href="#workflow" data-view="workflow" class="nav-link"><svg><use href="#i-book"/></svg> How it works</a>
+    </nav>
+    <div class="sidebar-note"><span class="little-star">✳</span><p>The little things<br>are the big things.</p><span>Make something to remember.</span></div>
+    <div class="sidebar-footer"><span class="local-dot"></span> Your local workspace <span class="footer-line">Stickers by IBM Bob</span></div>
+  </aside>
+  <div class="app-shell">
+    <header class="topbar"><span class="breadcrumb">Dear Me <span>/</span> <strong id="page-name">My scrapbook</strong></span><span class="connection" id="connection">Checking Bob…</span></header>
+    <main id="main">
+      <section id="scrapbook-view" class="view">
+        <div class="page-heading compact book-heading"><div><div class="eyebrow"><span></span> YOUR MOMENTS, ON THE PAGE</div><h1>A little story.<br>A place to <em>keep it.</em></h1><p>Pick your stickers, add a few words, and let the pages come together.</p></div><span class="book-local-note"><svg><use href="#i-check"/></svg> Automatically arranged.<br>Saved in your scrapbook.</span></div>
+        <div class="book-composer">
+          <form id="entry-form" class="entry-writing">
+            <div class="card-heading"><h2>Tell your story</h2><span class="step-note">A little or a lot.</span></div>
+            <label for="entry-title">Give it a title <span class="optional">optional</span></label>
+            <input id="entry-title" maxlength="120" placeholder="A day worth keeping">
+            <label for="entry-date">Memory date</label>
+            <input id="entry-date" type="date" required>
+            <label for="entry-text">What would you like to remember?</label>
+            <textarea id="entry-text" rows="7" maxlength="20000" placeholder="The little details. The people. How it felt…"></textarea>
+            <div class="entry-text-meta"><span>Paragraphs and line breaks are welcome.</span><span id="entry-character-count">0 / 20,000</span></div>
+            <button type="submit" id="entry-add" class="generate-button" disabled><svg><use href="#i-book"/></svg><span>Add</span></button>
+            <p class="entry-layout-note">Your text and selected stickers are aligned automatically. Extra content continues onto another page.</p>
+          </form>
+          <section class="entry-picker" aria-labelledby="picker-title">
+            <div class="card-heading"><h2 id="picker-title">Choose your stickers</h2><span id="selected-sticker-count" aria-live="polite">0 selected</span></div>
+            <div class="picker-controls"><label class="visually-hidden" for="sticker-search">Find a sticker</label><input id="sticker-search" type="search" placeholder="Find a sticker…"><label class="visually-hidden" for="sticker-source">Sticker source</label><select id="sticker-source"><option value="all">All stickers</option><option value="yours">Your stickers</option><option value="samples">Sample stickers</option></select></div>
+            <div id="sticker-picker-grid" class="sticker-picker-grid" aria-label="Available stickers"></div>
+            <p id="picker-empty" class="picker-empty" hidden>Try another search or <a href="#studio">make a new sticker</a> for your story.</p>
+            <div class="picker-footer"><span>Select several to keep them together.</span><button type="button" id="clear-sticker-selection" disabled>Clear selection</button></div>
+          </section>
+        </div>
+        <div id="entry-error" class="error-message" role="alert" hidden></div>
+        <div id="entry-saving" class="progress-panel" role="status" hidden><span class="spinner"></span><div><h3>Putting your pages together.</h3><p>Arranging the text, placing your stickers, and saving the entry locally.</p></div></div>
+        <section id="entry-viewer" class="entry-viewer" hidden aria-labelledby="saved-entry-title">
+          <div class="section-heading"><div><div class="eyebrow">A MOMENT, BEAUTIFULLY KEPT</div><h2 id="saved-entry-title"></h2><p id="saved-entry-summary" class="saved-entry-summary"></p></div><div class="entry-viewer-actions"><button type="button" id="new-entry-button" class="secondary-button">New entry</button><a id="entry-download-all" class="secondary-button" download><svg><use href="#i-download"/></svg> All pages (ZIP)</a></div></div>
+          <div class="page-navigation" aria-label="Scrapbook pages"><button type="button" id="previous-entry-page">Previous page</button><span id="entry-page-number" aria-live="polite"></span><button type="button" id="next-entry-page">Next page</button></div>
+          <div class="scrapbook-page-stage"><img id="scrapbook-page-preview" alt=""><div id="scrapbook-page-loading" class="page-render-placeholder" hidden>Opening your page…</div></div>
+          <div class="entry-page-downloads"><a id="entry-page-svg" download>Download page SVG</a><a id="entry-page-png" download>Download page PNG</a></div>
+          <details class="entry-transcript"><summary>Read entry text</summary><p id="entry-transcript-text"></p></details>
+        </section>
+        <section class="saved-entries-section" aria-labelledby="saved-entries-heading"><div class="section-heading"><div><div class="eyebrow">YOUR GROWING COLLECTION</div><h2 id="saved-entries-heading">Pages to come back to.</h2></div><span id="saved-entry-total" class="section-aside"></span></div><div id="saved-entries-grid" class="saved-entries-grid"></div><div id="saved-entries-empty" class="book-empty" hidden><svg><use href="#i-book"/></svg><h3>Your first entry starts above.</h3><p>Choose stickers, write a little text, or use both. Click Add to make your first page.</p></div></section>
+      </section>
+      <section id="studio-view" class="view" hidden>
+        <div class="page-heading"><div><div class="eyebrow"><span></span> A NEW WAY TO KEEP A MOMENT</div><h1>A little photo.<br>A little <em>magic.</em></h1><p>Turn the things you love into stickers that feel like you.<br> Pick a photo, find your subject, and make it your own.</p></div><div class="hero-art" aria-hidden="true"><span class="tape"></span><img class="hero-cat" src="/api/v1/studio/examples/cat/png" alt=""><img class="hero-tree" src="/api/v1/studio/examples/tree/png" alt=""><span class="hero-doodle">✦</span><span class="handwritten">little things,<br>lovingly kept</span></div></div>
+        <div id="setup-message" class="notice" hidden></div>
+        <div class="workspace">
+          <section class="photo-card" aria-labelledby="photo-title">
+            <div class="card-heading"><h2 id="photo-title">Start with a photo</h2><span class="step-note">The everyday kind is perfect.</span></div>
+            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" hidden>
+            <button class="upload-zone" id="upload-zone" type="button"><span class="upload-icon"><svg><use href="#i-upload"/></svg></span><strong>Drop a little memory here</strong><span>or click to choose a photo</span><small>JPG, PNG or WebP · up to 20 MB</small></button>
+            <div class="selected-photo" id="selected-photo" hidden><img id="photo-preview" alt="Your selected reference photo"><button id="change-photo" class="photo-change" type="button"><svg><use href="#i-image"/></svg> Change photo</button></div>
+            <div class="photo-caption"><span class="caption-mark">✳</span><span id="photo-caption">A pet, a favorite place, a very good cup of coffee.</span></div>
+          </section>
+          <form class="settings-card" id="generate-form">
+            <div class="card-heading"><h2>Make it yours</h2><span class="badge">ILLUSTRATED STICKERS</span></div>
+            <label for="subject">What would you like to keep? <span class="optional">optional</span></label>
+            <input id="subject" name="subject" maxlength="120" placeholder="e.g. my cat’s face, the school building">
+            <div class="field-help">Leave it blank and Bob will find the main subject.</div>
+            <fieldset class="style-fieldset"><legend>Choose a feeling</legend><div class="style-options">
+              <label class="style-option"><input type="radio" name="style" value="paper" checked><span class="style-art paper-art"><i></i><i></i><i></i></span><strong>Paper cut</strong><small>Warm & handmade</small></label>
+              <label class="style-option"><input type="radio" name="style" value="soft"><span class="style-art soft-art"><i></i><i></i><i></i></span><strong>Soft illustration</strong><small>Gentle & detailed</small></label>
+              <label class="style-option"><input type="radio" name="style" value="ink"><span class="style-art ink-art"><i></i><i></i><i></i></span><strong>Ink sketch</strong><small>Simple & expressive</small></label>
+            </div></fieldset>
+            <details class="more-options"><summary>A few more details <span>+</span></summary><label for="instructions">Anything Bob should know?</label><textarea id="instructions" maxlength="600" rows="2" placeholder="A portrait of the face and ears, with the whiskers included."></textarea><label for="sticker-count">Maximum stickers from this photo</label><select id="sticker-count"><option value="1">1 sticker · focus on one subject</option><option value="2">Up to 2 stickers</option><option value="3">Up to 3 stickers</option></select></details>
+            <button class="generate-button" id="generate-button" type="submit" disabled><svg><use href="#i-spark"/></svg><span>Make my sticker</span></button>
+            <p class="cost-note">Uses IBM Bob · <strong id="spend-limit">0.5</strong> Bobcoins limit per generation<br>Your selected photo is sent to Bob for illustration.</p>
+          </form>
+        </div>
+        <div id="generation-error" class="error-message" role="alert" hidden></div>
+        <section id="progress-panel" class="progress-panel" aria-live="polite" hidden><span class="spinner"></span><div><h3 id="progress-title">Your photo is getting a new life.</h3><p id="progress-detail">Waiting for Bob…</p></div><span id="elapsed-time" class="elapsed-time">0:00</span></section>
+        <section class="results-section" id="results-section" hidden aria-labelledby="results-title"><div class="section-heading"><div><div class="eyebrow">FRESH FROM YOUR PHOTO</div><h2 id="results-title">A little something to keep.</h2></div><span id="usage-summary" class="usage-summary"></span></div><div id="result-cards" class="result-cards"></div></section>
+        <section class="examples-section"><div class="section-heading"><div><div class="eyebrow">A FEW LITTLE POSSIBILITIES</div><h2>Every photo has a keepsake in it.</h2></div><span class="section-aside">Try a photo below, or bring your own.</span></div><div id="examples-grid" class="examples-grid"></div><p class="example-note">Illustrated by Bob and ready for your scrapbook. Select a sample sticker, or use its photo to create your own version.</p></section>
+        <div class="studio-bottom"><svg><use href="#i-check"/></svg> Transparent backgrounds <span>·</span> Crisp at any size <span>·</span> Yours to download and reuse</div>
+      </section>
+      <section id="library-view" class="view" hidden><div class="page-heading compact"><div><div class="eyebrow">COLLECTED LITTLE THINGS</div><h1>Your sticker <em>drawer.</em></h1><p>Everything you create is saved in this local workspace.</p></div><a href="#studio" class="secondary-button"><svg><use href="#i-spark"/></svg> Make another sticker</a></div><div id="library-grid" class="library-grid"></div><div id="library-empty" class="empty-state" hidden><svg><use href="#i-grid"/></svg><h2>A little space for your favorites.</h2><p>Make your first sticker and it will find a home here.</p><a href="#studio" class="secondary-button">Open the studio</a></div></section>
+      <section id="workflow-view" class="view" hidden>
+        <div class="page-heading compact"><div><div class="eyebrow">BEHIND THE LITTLE MAGIC</div><h1>Little moments.<br>Pages that <em>stay.</em></h1><p>Collect your words and stickers. Dear Me brings them together.</p></div></div>
+        <div class="workflow-grid">
+          <article><span class="workflow-icon"><svg><use href="#i-book"/></svg></span><h2>Put a story on the page.</h2><p>Choose stickers in My scrapbook, add your words and click Add. Dear Me arranges them into pages and saves the entry in your collection.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-image"/></svg></span><h2>Bring a real moment.</h2><p>In Sticker studio, upload a photo, pick a subject and choose an illustration style. A pet, a place or a favorite object makes a lovely starting point.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-spark"/></svg></span><h2>Bob illustrates your subject.</h2><p>IBM Bob turns the subject in your photo into an original vector illustration, keeping its distinctive colors, shapes and details.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-check"/></svg></span><h2>A finishing touch.</h2><p>The app adds a rounded white border that follows the illustration’s shapes, then creates an SVG and a transparent PNG for you.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-grid"/></svg></span><h2>Keep it, use it, make more.</h2><p>Your stickers stay in the library, ready for another story. Select Use in scrapbook to add one to your next entry, or download it to use elsewhere.</p></article>
+        </div>
+        <div class="workflow-footnote"><h2>Make it a collection.</h2><p>Come back to your saved entries, turn through their pages and read the words you kept. Download a single page as SVG or PNG, or gather the whole entry in a ZIP.</p><a href="#scrapbook">Start a scrapbook entry</a></div>
+      </section>
+    </main>
+    <footer class="page-footer"><span>dear me</span> Little moments, beautifully remembered.</footer>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

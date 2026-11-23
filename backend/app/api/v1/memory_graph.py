@@ -17,5 +17,5 @@ def get_memory_graph() -> MemoryGraph:
 
 @router.get("/suggestions", response_model=list[ConnectionSuggestion])
 def get_suggestions() -> list[ConnectionSuggestion]:
-    """Return AI-suggested connections between entries."""
+    """Suggest connections based on shared entry details."""
     return get_connection_suggestions()

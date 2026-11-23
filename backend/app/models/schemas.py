@@ -1,7 +1,4 @@
-"""
-Data models for the entire application.
-Using simple in-memory + file-based storage (no database required to run locally).
-"""
+"""Data models for journal entries, memory connections, styles and illustrations."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -118,12 +115,15 @@ class ExtractedObject(BaseModel):
     label: str                  # "coffee cup", "receipt", etc.
     style: str                  # "watercolor" | "lineart" | "collage" | "vintage"
     image_url: str = ""         # URL to the generated sticker asset
+    svg_url: str = ""
+    artwork_url: str = ""
     description: str = ""
 
 
 class ExtractionResult(BaseModel):
     source_image_url: str
     objects: list[ExtractedObject]
+    usage: dict[str, Any] = Field(default_factory=dict)
 
 
 # ─────────────────────────────────────────────

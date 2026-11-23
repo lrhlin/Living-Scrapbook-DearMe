@@ -1,51 +1,33 @@
 """Feature 3: Object Extraction API"""
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
-import aiofiles
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-
-from app.core.config import settings
+import asyncio
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from app.models.schemas import ExtractionResult
-from app.services.object_extractor import extract_objects_from_image
+from app.services.object_extractor import STYLE_ALIASES
+from app.services.studio_jobs import get_job
+from app.api.v1.studio import create
 
 router = APIRouter(prefix="/extract", tags=["extract"])
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-
-
 @router.post("/", response_model=ExtractionResult)
 async def extract_objects(
+    request: Request,
     file: UploadFile = File(...),
     style: str = Form(default="watercolor"),
 ) -> ExtractionResult:
-    """
-    Upload a photo and receive a list of extracted scrapbook objects.
-
-    - **file**: image file (JPEG, PNG, or WebP)
-    - **style**: one of `watercolor`, `lineart`, `collage`, `vintage`
-    """
-    if style not in ("watercolor", "lineart", "collage", "vintage"):
-        raise HTTPException(status_code=400, detail="Invalid style. Choose from: watercolor, lineart, collage, vintage")
-
-    suffix = Path(file.filename or "upload.jpg").suffix.lower()
-    if suffix not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {suffix}")
-
-    max_bytes = settings.max_upload_size_mb * 1024 * 1024
-    upload_dir = Path(settings.upload_dir) / "originals"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    dest_path = upload_dir / f"{os.urandom(8).hex()}{suffix}"
-
-    content = await file.read()
-    if len(content) > max_bytes:
-        raise HTTPException(status_code=413, detail="File too large")
-
-    async with aiofiles.open(dest_path, "wb") as f:
-        await f.write(content)
-
-    result = await extract_objects_from_image(str(dest_path), style=style)
+    """Compatibility endpoint for the original Next.js client; now uses Bob."""
+    job = await create(file=file, style=STYLE_ALIASES.get(style, style), subject="", instructions="", count=1)
+    while job["status"] not in {"done", "error"}:
+        await asyncio.sleep(0.5)
+        job = get_job(job["id"])
+    if job["status"] == "error":
+        raise HTTPException(502, job["error"])
+    result = ExtractionResult(**job["result"])
+    base = str(request.base_url).rstrip("/")
+    result.source_image_url = base + result.source_image_url
+    for obj in result.objects:
+        obj.image_url = base + obj.image_url
+        obj.svg_url = base + obj.svg_url
+        obj.artwork_url = base + obj.artwork_url
     return result
