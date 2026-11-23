@@ -78,11 +78,13 @@
         <div id="setup-message" class="notice" hidden></div>
         <div class="workspace">
           <section class="photo-card" aria-labelledby="photo-title">
-            <div class="card-heading"><h2 id="photo-title">Start with a photo</h2><span class="step-note">The everyday kind is perfect.</span></div>
-            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" hidden>
-            <button class="upload-zone" id="upload-zone" type="button"><span class="upload-icon"><svg><use href="#i-upload"/></svg></span><strong>Drop a little memory here</strong><span>or click to choose a photo</span><small>JPG, PNG or WebP · up to 20 MB</small></button>
-            <div class="selected-photo" id="selected-photo" hidden><img id="photo-preview" alt="Your selected reference photo"><button id="change-photo" class="photo-change" type="button"><svg><use href="#i-image"/></svg> Change photo</button></div>
-            <div class="photo-caption"><span class="caption-mark">✳</span><span id="photo-caption">A pet, a favorite place, a very good cup of coffee.</span></div>
+            <div class="card-heading"><h2 id="photo-title">Start with photos</h2><span class="step-note">One or several — your call.</span></div>
+            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <button class="upload-zone" id="upload-zone" type="button"><span class="upload-icon"><svg><use href="#i-upload"/></svg></span><strong>Drop your photos here</strong><span>or click to choose one or more</span><small>JPG, PNG or WebP · up to 20 MB each</small></button>
+            <div id="photo-grid-section" hidden>
+              <div id="photo-grid" class="photo-grid"></div>
+            </div>
+            <div class="photo-caption"><span class="caption-mark">✳</span><span>Each photo becomes its own set of stickers.</span></div>
           </section>
           <form class="settings-card" id="generate-form">
             <div class="card-heading"><h2>Make it yours</h2><span class="badge">ILLUSTRATED STICKERS</span></div>
