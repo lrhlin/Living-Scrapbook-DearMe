@@ -1,7 +1,8 @@
 'use strict';
 
 const $ = (selector) => document.querySelector(selector);
-const state = {file:null, preview:null, ready:false, busy:false, job:null, started:0, timer:null, examples:[]};
+const MAX_PHOTOS=3;
+const state = {files:[], previews:[], ready:false, busy:false, job:null, started:0, timer:null, examples:[]};
 const names = {scrapbook:'My scrapbook', studio:'Sticker studio', library:'My sticker library', workflow:'How it works'};
 const styleNames = {paper:'Paper cut', soft:'Soft illustration', ink:'Ink sketch'};
 
@@ -37,20 +38,23 @@ function setBusy(busy) {
   state.busy=busy;
   for (const input of document.querySelectorAll('#generate-form input,#generate-form textarea,#generate-form select')) input.disabled=busy;
   $('#upload-zone').disabled=busy;$('#change-photo').disabled=busy;
-  $('#generate-button').disabled=busy||!state.file||!state.ready;
-  $('#generate-button span').textContent=busy?'Making your keepsake…':'Make my sticker';
+  $('#generate-button').disabled=busy||!state.files.length||!state.ready;
+  $('#generate-button span').textContent=busy?'Making your keepsake…':state.files.length>1?'Make my stickers':'Make my sticker';
   for (const button of document.querySelectorAll('.example-actions button')) button.disabled=busy;
 }
-function selectFile(file,caption) {
+function selectFiles(files,caption) {
   if (state.busy) return;
-  if (!file || !['image/jpeg','image/png','image/webp'].includes(file.type)) {showError('Choose a JPG, PNG or WebP photo.');return;}
-  if (file.size>20*1024*1024) {showError('Choose a photo smaller than 20 MB.');return;}
-  if (state.preview) URL.revokeObjectURL(state.preview);
-  state.file=file;state.preview=URL.createObjectURL(file);
+  const selected=Array.from(files||[]);
+  if (!selected.length) return;
+  if (selected.length>MAX_PHOTOS) {showError('Choose up to 3 photos at a time.');return;}
+  if (selected.some(file=>!['image/jpeg','image/png','image/webp'].includes(file.type))) {showError('Choose JPG, PNG or WebP photos.');return;}
+  if (selected.some(file=>file.size>20*1024*1024)) {showError('Each photo must be smaller than 20 MB.');return;}
+  state.previews.forEach(URL.revokeObjectURL);
+  state.files=selected;state.previews=selected.map(file=>URL.createObjectURL(file));
   history.replaceState(null,'',location.pathname+'#studio');
-  $('#photo-preview').src=state.preview;$('#photo-preview').alt='Reference photo: '+file.name;
+  $('#photo-preview-list').replaceChildren(...selected.map((file,index)=>el('img',{src:state.previews[index],alt:'Reference photo: '+file.name,title:file.name})));
   $('#selected-photo').hidden=false;$('#upload-zone').hidden=true;
-  $('#photo-caption').textContent=caption||file.name;
+  $('#photo-caption').textContent=caption||selected.map(file=>file.name).join(' · ');
   $('#generation-error').hidden=true;$('#results-section').hidden=true;
   setBusy(false);
 }
@@ -87,20 +91,27 @@ function stickerCard(sticker,options={}) {
   }
   return el('article',{class:'result-card'},[el('div',{class:'sticker-preview'},[image]),info]);
 }
-function showResult(job) {
-  const original=el('article',{class:'result-card'},[
-    el('div',{class:'sticker-preview'},[el('img',{src:job.source_image_url,alt:'Original reference photo'})]),
-    el('div',{class:'result-info'},[el('h3',{text:'Your original photo'}),el('p',{text:'The moment your sticker started with.'})])
-  ]);
-  $('#result-cards').replaceChildren(original,...job.result.objects.map((obj,index)=>stickerCard(obj,{stickerId:'job:'+job.id+':'+index})));
-  const usage=job.result.usage||{};
+function showResults(jobs) {
+  const cards=[];let bobcoins=0,seconds=0,tokens=0;
+  for (const job of jobs) {
+    cards.push(el('article',{class:'result-card'},[
+      el('div',{class:'sticker-preview'},[el('img',{src:job.source_image_url,alt:'Original reference photo: '+job.photo_name})]),
+      el('div',{class:'result-info'},[el('h3',{text:job.photo_name||'Your original photo'}),el('p',{text:'The moment this sticker started with.'})])
+    ]));
+    cards.push(...job.result.objects.map((obj,index)=>stickerCard(obj,{stickerId:'job:'+job.id+':'+index})));
+    const usage=job.result.usage||{};
+    if (typeof usage.bobcoins==='number') bobcoins+=usage.bobcoins;
+    if (typeof usage.elapsed_seconds==='number') seconds+=usage.elapsed_seconds;
+    if (typeof usage.total_tokens==='number') tokens+=usage.total_tokens;
+  }
+  $('#result-cards').replaceChildren(...cards);
   const parts=[];
-  if (typeof usage.bobcoins==='number') parts.push(Number(usage.bobcoins.toFixed(6))+' Bobcoins');
-  if (typeof usage.elapsed_seconds==='number') parts.push(Math.round(usage.elapsed_seconds)+' seconds');
-  if (typeof usage.total_tokens==='number') parts.push(usage.total_tokens.toLocaleString()+' tokens');
+  if (bobcoins) parts.push(Number(bobcoins.toFixed(6))+' Bobcoins');
+  if (seconds) parts.push(Math.round(seconds)+' seconds');
+  if (tokens) parts.push(tokens.toLocaleString()+' tokens');
   $('#usage-summary').textContent=parts.join(' · ');
   $('#results-section').hidden=false;
-  $('#results-title').textContent=job.result.objects.length===1?'A little something to keep.':'A few little things to keep.';
+  $('#results-title').textContent=jobs.length===1?'A little something to keep.':jobs.length+' photos, ready to keep.';
 }
 function updateElapsed() {
   const seconds=Math.max(0,Math.floor((Date.now()-state.started)/1000));
@@ -111,34 +122,50 @@ function showProgress(job) {
   const messages={queued:'Your photo is in line. We’ll start illustrating it shortly.',generating:'Bob is reading your photo and illustrating the subject.',finishing:'Adding the sticker border and preparing your downloads.'};
   $('#progress-detail').textContent=messages[job.status]||'Preparing your photo…';
 }
-async function followJob(id) {
-  let finished=false;
-  try {
-    while (!finished) {
+async function followJobs(jobs) {
+  const pending=new Map(jobs.map((job,index)=>[job.id,{...job,photo_name:job.photo_name||'Photo '+(index+1)}]));
+  const completed=[],errors=[];
+  while (pending.size) {
+    await Promise.all([...pending.entries()].map(async([id,summary])=>{
       const job=await api('/jobs/'+id);state.job=job;
-      if (job.status==='done') {
-        finished=true;showResult(job);sessionStorage.removeItem('dearme-active-job');
-        await loadLibrary();toast('Your sticker is ready and saved in your library.');
-      } else if (job.status==='error') {
-        finished=true;sessionStorage.removeItem('dearme-active-job');throw new Error(job.error||'Try generating your sticker again.');
-      } else {showProgress(job);await new Promise(resolve=>setTimeout(resolve,1400));}
+      if (job.status==='done') {completed.push({...job,photo_name:summary.photo_name});pending.delete(id);}
+      else if (job.status==='error') {errors.push(summary.photo_name+': '+(job.error||'Try generating this sticker again.'));pending.delete(id);}
+    }));
+    if (pending.size) {
+      const finished=completed.length+errors.length;
+      $('#progress-panel').hidden=false;
+      $('#progress-title').textContent=finished+' of '+jobs.length+' photos complete';
+      $('#progress-detail').textContent='Bob is illustrating each photo in the queue.';
+      await new Promise(resolve=>setTimeout(resolve,1400));
     }
-  } catch(error) {showError(error.message);}
-  finally {clearInterval(state.timer);$('#progress-panel').hidden=true;setBusy(false);}
+  }
+  sessionStorage.removeItem('dearme-active-jobs');sessionStorage.removeItem('dearme-active-job');
+  return {completed,errors};
 }
 async function generate(event) {
-  event.preventDefault();if (!state.file||state.busy||!state.ready) return;
+  event.preventDefault();if (!state.files.length||state.busy||!state.ready) return;
   $('#generation-error').hidden=true;$('#results-section').hidden=true;setBusy(true);
-  const form=new FormData();form.append('file',state.file);
-  form.append('style',$('input[name="style"]:checked').value);form.append('subject',$('#subject').value);
-  form.append('instructions',$('#instructions').value);form.append('count',$('#sticker-count').value);
+  const files=[...state.files],jobs=[],style=$('input[name="style"]:checked').value;
+  const subject=$('#subject').value,instructions=$('#instructions').value,count=$('#sticker-count').value;
+  let uploadError=null;
   try {
-    const job=await api('/jobs',{method:'POST',body:form});
-    history.replaceState(null,'','?job='+job.id+'#studio');
+    for (let index=0;index<files.length;index++) {
+      const file=files[index],form=new FormData();form.append('file',file);
+      form.append('style',style);form.append('subject',subject);form.append('instructions',instructions);form.append('count',count);
+      $('#progress-panel').hidden=false;$('#progress-title').textContent='Uploading photo '+(index+1)+' of '+files.length;
+      try {jobs.push({...await api('/jobs',{method:'POST',body:form}),photo_name:file.name});}
+      catch(error) {uploadError=error.message;break;}
+    }
+    if (!jobs.length) {if(uploadError)throw new Error(uploadError);return;}
+    history.replaceState(null,'','?job='+jobs.at(-1).id+'#studio');
     state.started=Date.now();updateElapsed();state.timer=setInterval(updateElapsed,1000);
-    sessionStorage.setItem('dearme-active-job',job.id);showProgress(job);
-    await followJob(job.id);
-  } catch(error) {showError(error.message);setBusy(false);}
+    sessionStorage.setItem('dearme-active-jobs',JSON.stringify(jobs.map(job=>job.id)));
+    const result=await followJobs(jobs);
+    if (result.completed.length) {showResults(result.completed);await loadLibrary();toast(result.completed.length===1?'Your sticker is ready and saved in your library.':result.completed.length+' photos are saved in your library.');}
+    const problems=[...result.errors];if(uploadError)problems.push(uploadError);
+    if (problems.length) showError(result.completed.length+' of '+files.length+' photos completed. '+problems.join(' '));
+  } catch(error) {showError(error.message);}
+  finally {clearInterval(state.timer);$('#progress-panel').hidden=true;setBusy(false);}
 }
 async function useExample(example) {
   if (state.busy) return;
@@ -146,7 +173,7 @@ async function useExample(example) {
     const response=await fetch(example.original_url);if (!response.ok) throw new Error('This example photo is unavailable.');
     const blob=await response.blob();
     const file=new File([blob],example.slug+'.'+example.extension,{type:example.extension==='jpg'?'image/jpeg':'image/png'});
-    selectFile(file,'Example photo · '+example.credit);
+    selectFiles([file],'Example photo · '+example.credit);
     $('#subject').value=example.subject;
     $('#instructions').value=example.slug==='cat'?'A portrait of the face and ears, with the whiskers included.':'';
     location.hash='studio';$('#photo-title').scrollIntoView({behavior:'smooth',block:'start'});
@@ -195,26 +222,37 @@ async function initialize() {
     }
     setBusy(false);
     const requested=new URLSearchParams(location.search).get('job');
-    const active=sessionStorage.getItem('dearme-active-job')||(/^[a-f0-9]{32}$/.test(requested||'')?requested:null);
-    if (active) {
-      const job=await api('/jobs/'+active);
+    const rawJobs=sessionStorage.getItem('dearme-active-jobs');
+    let activeJobs=[];
+    try {activeJobs=rawJobs?JSON.parse(rawJobs):[];} catch {}
+    if (!activeJobs.length) {
+      const active=sessionStorage.getItem('dearme-active-job')||(/^[a-f0-9]{32}$/.test(requested||'')?requested:null);
+      if (active) activeJobs=[active];
+    }
+    if (activeJobs.length) {
+      const jobs=await Promise.all(activeJobs.map(id=>api('/jobs/'+id)));
+      const job=jobs[0];
       state.started=Date.parse(job.created_at);state.job=job;
-      $('#photo-preview').src=job.source_image_url;$('#selected-photo').hidden=false;$('#upload-zone').hidden=true;
+      $('#photo-preview-list').replaceChildren(...jobs.map((item,index)=>el('img',{src:item.source_image_url,alt:'Saved reference photo '+(index+1)})));$('#selected-photo').hidden=false;$('#upload-zone').hidden=true;
       $('#subject').value=job.subject||'';$('#instructions').value=job.instructions||'';
       for (const option of document.querySelectorAll('input[name="style"]')) option.checked=option.value===job.style;
       $('#sticker-count').value=String(job.count||1);
       const savedPhoto=await fetch(job.source_image_url);
-      if (savedPhoto.ok) state.file=new File([await savedPhoto.blob()],'saved-reference.png',{type:'image/png'});
-      setBusy(true);updateElapsed();state.timer=setInterval(updateElapsed,1000);await followJob(active);
+      if (savedPhoto.ok) state.files=[new File([await savedPhoto.blob()],'saved-reference.png',{type:'image/png'})];
+      setBusy(true);updateElapsed();state.timer=setInterval(updateElapsed,1000);
+      const result=await followJobs(jobs.map((item,index)=>({...item,photo_name:'Photo '+(index+1)})));
+      if (result.completed.length) {showResults(result.completed);await loadLibrary();}
+      if (result.errors.length) showError(result.errors.join(' '));
+      setBusy(false);
     }
   } catch(error) {$('#connection').textContent='Server unavailable';$('#connection').classList.add('unavailable');showError(error.message);}
 }
 $('#generate-form').addEventListener('submit',generate);
 $('#upload-zone').addEventListener('click',()=>$('#photo-file').click());
 $('#change-photo').addEventListener('click',()=>$('#photo-file').click());
-$('#photo-file').addEventListener('change',event=>selectFile(event.target.files[0]));
+$('#photo-file').addEventListener('change',event=>{selectFiles(event.target.files);event.target.value='';});
 for (const name of ['dragenter','dragover']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();if(!state.busy)$('#upload-zone').classList.add('dragging');});
-for (const name of ['dragleave','drop']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();$('#upload-zone').classList.remove('dragging');if(name==='drop'&&!state.busy)selectFile(event.dataTransfer.files[0]);});
+for (const name of ['dragleave','drop']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();$('#upload-zone').classList.remove('dragging');if(name==='drop'&&!state.busy)selectFiles(event.dataTransfer.files);});
 window.addEventListener('hashchange',switchView);
-window.addEventListener('beforeunload',()=>{if(state.preview)URL.revokeObjectURL(state.preview);});
+window.addEventListener('beforeunload',()=>state.previews.forEach(URL.revokeObjectURL));
 initialize();

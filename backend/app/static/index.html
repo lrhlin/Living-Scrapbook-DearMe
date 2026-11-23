@@ -78,10 +78,10 @@
         <div id="setup-message" class="notice" hidden></div>
         <div class="workspace">
           <section class="photo-card" aria-labelledby="photo-title">
-            <div class="card-heading"><h2 id="photo-title">Start with a photo</h2><span class="step-note">The everyday kind is perfect.</span></div>
-            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" hidden>
-            <button class="upload-zone" id="upload-zone" type="button"><span class="upload-icon"><svg><use href="#i-upload"/></svg></span><strong>Drop a little memory here</strong><span>or click to choose a photo</span><small>JPG, PNG or WebP · up to 20 MB</small></button>
-            <div class="selected-photo" id="selected-photo" hidden><img id="photo-preview" alt="Your selected reference photo"><button id="change-photo" class="photo-change" type="button"><svg><use href="#i-image"/></svg> Change photo</button></div>
+            <div class="card-heading"><h2 id="photo-title">Start with your photos</h2><span class="step-note">The everyday kind is perfect.</span></div>
+            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <button class="upload-zone" id="upload-zone" type="button"><span class="upload-icon"><svg><use href="#i-upload"/></svg></span><strong>Drop little memories here</strong><span>or click to choose up to 3 photos</span><small>JPG, PNG or WebP · up to 20 MB each</small></button>
+            <div class="selected-photo" id="selected-photo" hidden><div id="photo-preview-list" class="photo-preview-list"></div><button id="change-photo" class="photo-change" type="button"><svg><use href="#i-image"/></svg> Change photos</button></div>
             <div class="photo-caption"><span class="caption-mark">✳</span><span id="photo-caption">A pet, a favorite place, a very good cup of coffee.</span></div>
           </section>
           <form class="settings-card" id="generate-form">
@@ -96,7 +96,7 @@
             </div></fieldset>
             <details class="more-options"><summary>A few more details <span>+</span></summary><label for="instructions">Anything Bob should know?</label><textarea id="instructions" maxlength="600" rows="2" placeholder="A portrait of the face and ears, with the whiskers included."></textarea><label for="sticker-count">Maximum stickers from this photo</label><select id="sticker-count"><option value="1">1 sticker · focus on one subject</option><option value="2">Up to 2 stickers</option><option value="3">Up to 3 stickers</option></select></details>
             <button class="generate-button" id="generate-button" type="submit" disabled><svg><use href="#i-spark"/></svg><span>Make my sticker</span></button>
-            <p class="cost-note">Uses IBM Bob · <strong id="spend-limit">0.5</strong> Bobcoins limit per generation<br>Your selected photo is sent to Bob for illustration.</p>
+            <p class="cost-note">Uses IBM Bob · <strong id="spend-limit">0.5</strong> Bobcoins limit per photo<br>Your selected photos are sent to Bob for illustration.</p>
           </form>
         </div>
         <div id="generation-error" class="error-message" role="alert" hidden></div>
