@@ -92,7 +92,7 @@ export default function EntryPanel() {
       <section>
         <h2 className="text-lg font-semibold mb-3">All Entries ({entries.length})</h2>
         {entries.length === 0 && (
-          <p className="text-stone-400 text-sm">No entries yet. Add your first memory above.</p>
+          <p className="text-stone-400 text-sm">Add your first memory above to begin your collection.</p>
         )}
         <ul className="space-y-3">
           {entries.map((entry) => (

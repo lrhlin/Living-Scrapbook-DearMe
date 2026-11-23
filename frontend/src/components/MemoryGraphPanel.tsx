@@ -66,7 +66,7 @@ export default function MemoryGraphPanel() {
           Connections you might have forgotten — group them into a themed scrapbook.
         </p>
         {suggestions.length === 0 ? (
-          <p className="text-stone-400 text-sm">No suggestions yet. Add more entries with shared details.</p>
+          <p className="text-stone-400 text-sm">Add entries with shared details to discover connections.</p>
         ) : (
           <ul className="space-y-3">
             {suggestions.map((s, i) => (

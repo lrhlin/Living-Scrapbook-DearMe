@@ -38,7 +38,7 @@ export default function ChaptersPanel() {
 
       {chapters.length === 0 && !loading && (
         <p className="text-stone-400 text-sm text-center py-8">
-          No chapters yet. Add multiple related entries (same location, person, or tag), then generate.
+          Add memories with a shared location, person or tag, then generate your first chapter.
         </p>
       )}
 
