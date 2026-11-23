@@ -1,0 +1,10 @@
+{
+  "name": "dear-me-local-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local IBM Bob CLI and SVG rendering for Dear Me",
+  "dependencies": {
+    "@ibm/bob": "2.1.0",
+    "@resvg/resvg-js": "2.6.2"
+  }
+}

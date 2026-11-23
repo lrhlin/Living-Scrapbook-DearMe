@@ -1,0 +1,31 @@
+{
+  "generator": "IBM Bob Shell 2.1.0, Agent mode",
+  "reference_page": "https://purepng.com/photo/28503/nature-christmas-tree-traditional",
+  "reference_image": "https://purepng.com/public/uploads/medium/chirstmas-tree-fully-decorated-o3k.png",
+  "reference_observations": [
+    "Tall pointed conical tree shape with many irregular, asymmetric bough layers extending wider toward the base",
+    "Topper is a tall faceted gold spire/finial with a rounded gold ball at its base \u2014 not a star",
+    "Gold bead garlands drape in gentle horizontal swags across multiple levels of the tree",
+    "Ornaments are densely distributed and varied: large round baubles in deep red with scroll patterns, warm gold, cream/silver, and amber/copper tones",
+    "Several white pine-cone shaped ornaments and a white snowflake ornament visible in the mid-section",
+    "A few small deep-blue elongated ornaments on the left side, plus scattered multicolour fairy lights (red, yellow, blue, green) throughout",
+    "Red star ornament visible on the lower right; small gold bells and icicle/teardrop drops near the base",
+    "Black cruciform metal stand at the base"
+  ],
+  "generation_stats": {
+    "task_id": "fc87d9cc70a5fc4f0ace5eb24473e86c",
+    "duration_ms": 77226,
+    "session_costs": 0.12068,
+    "max_cost": 0.5,
+    "tool_calls": 5
+  },
+  "svg_modified_after_generation": true,
+  "postprocessing": {
+    "by": "Codex",
+    "changes": [
+      "Replaced oversized independent backing with a round seven-unit border from actual vector geometry.",
+      "Clipped bead garlands and fairy lights to the exact foliage paths."
+    ],
+    "additional_bob_api_calls": 0
+  }
+}

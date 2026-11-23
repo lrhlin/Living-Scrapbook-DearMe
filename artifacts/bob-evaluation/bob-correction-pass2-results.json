@@ -1,0 +1,31 @@
+{
+  "diagnosis": "Three defects in the first correction: (1) Garland beads live inside <g fill='#d4a820'/> etc. groups that are direct children of artwork_g \u2014 the old script only clipped bare <circle> children, so those garland groups were placed in 'others' and their beads remained unclipped outside the foliage; additionally the fairy light circles that ARE direct children were all moved to a clipped lights group but that group was appended after the ornament children, changing z-order. Fix: identify garland <g> nodes by their gold fill colours and apply clip-path='url(#treeClip)' directly to those groups; apply the same clip to a wrapper for the direct fairy-light circles, identified by their actual light colours (#ff4040/#ff3030/#ffe040/#60a0ff/#40e060) rather than by radius, so the gold spire-tip circle (#ffe8a0, r=4) is NOT clipped. (2) The spire tip circle cx=320 cy=44 r=4 fill=#ffe8a0 was caught by the r<=5 rule and clipped away. Fix: use colour-based identification for lights, explicitly excluding #ffe8a0 and any circle above y<80. (3) feMorphology dilate produces square corner protrusions because it is a rectangular dilation. Fix: replace the filter-based outline with a stroke-based outline \u2014 collect all foliage tier paths, stand polygon/rect, and trunk rect geometry, render them in a background group with fill='#fffef5' and stroke='#fffef5' stroke-width='14' stroke-linejoin='round' stroke-linecap='round', which produces the same 7-unit border on all sides with smooth rounded joins that follow the actual vector silhouette. No bitmaps, no external references, all editable vectors.",
+  "stats": {
+    "task_id": "9983a3bb537f2f4542caf6715f6df1d1",
+    "duration_ms": 41127,
+    "session_costs": 0.237458,
+    "max_cost": 0.5,
+    "tool_calls": 6
+  },
+  "elapsed_seconds": 42.28,
+  "generator": "IBM Bob Shell 2.1.0",
+  "provided_inputs": [
+    "original-tree.svg",
+    "first-correction.py",
+    "first-correction.png"
+  ],
+  "human_artwork_edits": false,
+  "visual_review": {
+    "status": "partial",
+    "fixed": [
+      "Main oversized misaligned outline",
+      "Floating bead garlands and fairy lights",
+      "Square outline corners"
+    ],
+    "remaining": [
+      "White border missing around the gold finial",
+      "White border missing around ornaments extending beyond the foliage"
+    ]
+  },
+  "total_reported_bobcoins_two_passes": 0.29246
+}
