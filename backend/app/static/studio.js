@@ -1,8 +1,7 @@
 'use strict';
 
 const $ = (selector) => document.querySelector(selector);
-// files: array of {file, preview, caption}
-const state = {files:[], ready:false, busy:false, job:null, started:0, timer:null, examples:[]};
+const state = {file:null, preview:null, ready:false, busy:false, job:null, started:0, timer:null, examples:[]};
 const names = {scrapbook:'My scrapbook', studio:'Sticker studio', library:'My sticker library', workflow:'How it works'};
 const styleNames = {paper:'Paper cut', soft:'Soft illustration', ink:'Ink sketch'};
 
@@ -37,67 +36,23 @@ function showError(message) {$('#generation-error').textContent=message;$('#gene
 function setBusy(busy) {
   state.busy=busy;
   for (const input of document.querySelectorAll('#generate-form input,#generate-form textarea,#generate-form select')) input.disabled=busy;
-  $('#upload-zone').disabled=busy;
-  $('#generate-button').disabled=busy||state.files.length===0||!state.ready;
-  $('#generate-button span').textContent=busy?'Making your keepsakes…':'Make my sticker'+(state.files.length>1?' ('+state.files.length+' photos)':'');
+  $('#upload-zone').disabled=busy;$('#change-photo').disabled=busy;
+  $('#generate-button').disabled=busy||!state.file||!state.ready;
+  $('#generate-button span').textContent=busy?'Making your keepsake…':'Make my sticker';
   for (const button of document.querySelectorAll('.example-actions button')) button.disabled=busy;
 }
-function renderPhotoGrid() {
-  const grid=$('#photo-grid');
-  grid.replaceChildren();
-  if (state.files.length===0) {
-    $('#upload-zone').hidden=false;
-    $('#photo-grid-section').hidden=true;
-    return;
-  }
-  $('#upload-zone').hidden=true;
-  $('#photo-grid-section').hidden=false;
-  state.files.forEach((entry,index)=>{
-    const img=el('img',{src:entry.preview,alt:'Reference photo '+(index+1),loading:'lazy'});
-    const remove=el('button',{type:'button',class:'photo-remove','aria-label':'Remove photo '+(index+1),text:'×'});
-    remove.addEventListener('click',()=>{
-      if (state.busy) return;
-      URL.revokeObjectURL(entry.preview);
-      state.files.splice(index,1);
-      renderPhotoGrid();setBusy(false);
-    });
-    const card=el('div',{class:'photo-thumb'},[img,remove,el('span',{class:'photo-thumb-name',text:entry.caption||entry.file.name})]);
-    grid.append(card);
-  });
-  // "Add more" button
-  if (!state.busy) {
-    const addMore=el('button',{type:'button',class:'photo-add-more',text:'+ Add more'});
-    addMore.addEventListener('click',()=>$('#photo-file').click());
-    grid.append(addMore);
-  }
-  setBusy(state.busy);
-}
-function addFiles(fileList, captionOverride) {
-  if (state.busy) return;
-  let added=0;
-  for (const file of Array.from(fileList||[])) {
-    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {showError('Choose JPG, PNG or WebP photos.');continue;}
-    if (file.size>20*1024*1024) {showError(file.name+' is larger than 20 MB — skipped.');continue;}
-    state.files.push({file,preview:URL.createObjectURL(file),caption:captionOverride||file.name});
-    added++;
-  }
-  if (added>0) {
-    history.replaceState(null,'',location.pathname+'#studio');
-    $('#generation-error').hidden=true;$('#results-section').hidden=true;
-  }
-  renderPhotoGrid();
-}
-// Keep selectFile for backward-compat with example loading
 function selectFile(file,caption) {
   if (state.busy) return;
   if (!file || !['image/jpeg','image/png','image/webp'].includes(file.type)) {showError('Choose a JPG, PNG or WebP photo.');return;}
   if (file.size>20*1024*1024) {showError('Choose a photo smaller than 20 MB.');return;}
-  // Replace all current files with this one (used by examples)
-  for (const e of state.files) URL.revokeObjectURL(e.preview);
-  state.files=[{file,preview:URL.createObjectURL(file),caption:caption||file.name}];
+  if (state.preview) URL.revokeObjectURL(state.preview);
+  state.file=file;state.preview=URL.createObjectURL(file);
   history.replaceState(null,'',location.pathname+'#studio');
+  $('#photo-preview').src=state.preview;$('#photo-preview').alt='Reference photo: '+file.name;
+  $('#selected-photo').hidden=false;$('#upload-zone').hidden=true;
+  $('#photo-caption').textContent=caption||file.name;
   $('#generation-error').hidden=true;$('#results-section').hidden=true;
-  renderPhotoGrid();setBusy(false);
+  setBusy(false);
 }
 function switchView() {
   const requestedView=location.hash.slice(1);
@@ -171,78 +126,19 @@ async function followJob(id) {
   } catch(error) {showError(error.message);}
   finally {clearInterval(state.timer);$('#progress-panel').hidden=true;setBusy(false);}
 }
-async function generateOne(entry, style, subject, instructions, count) {
-  const form=new FormData();
-  form.append('file',entry.file);
-  form.append('style',style);form.append('subject',subject);
-  form.append('instructions',instructions);form.append('count',count);
-  const job=await api('/jobs',{method:'POST',body:form});
-  return job;
-}
 async function generate(event) {
-  event.preventDefault();if (state.files.length===0||state.busy||!state.ready) return;
+  event.preventDefault();if (!state.file||state.busy||!state.ready) return;
   $('#generation-error').hidden=true;$('#results-section').hidden=true;setBusy(true);
-  const style=$('input[name="style"]:checked').value;
-  const subject=$('#subject').value;
-  const instructions=$('#instructions').value;
-  const count=parseInt($('#sticker-count').value)||1;
-  // Submit each photo as a separate job, then follow all in sequence
+  const form=new FormData();form.append('file',state.file);
+  form.append('style',$('input[name="style"]:checked').value);form.append('subject',$('#subject').value);
+  form.append('instructions',$('#instructions').value);form.append('count',$('#sticker-count').value);
   try {
-    const jobs=[];
-    for (const entry of state.files) {
-      const job=await generateOne(entry,style,subject,instructions,count);
-      jobs.push(job);
-    }
-    if (jobs.length===1) {
-      history.replaceState(null,'','?job='+jobs[0].id+'#studio');
-      sessionStorage.setItem('dearme-active-job',jobs[0].id);
-    }
+    const job=await api('/jobs',{method:'POST',body:form});
+    history.replaceState(null,'','?job='+job.id+'#studio');
     state.started=Date.now();updateElapsed();state.timer=setInterval(updateElapsed,1000);
-    showProgress(jobs[0]);
-    // Follow each job in sequence and accumulate results
-    const allResults=[];
-    for (const job of jobs) {
-      const result=await followJobReturn(job.id);
-      if (result) allResults.push(result);
-    }
-    if (allResults.length>0) showMultiResult(allResults);
-    await loadLibrary();toast(allResults.length===1?'Your sticker is ready and saved in your library.':'Your stickers are ready and saved in your library.');
+    sessionStorage.setItem('dearme-active-job',job.id);showProgress(job);
+    await followJob(job.id);
   } catch(error) {showError(error.message);setBusy(false);}
-}
-// Like followJob but returns the job instead of rendering directly
-async function followJobReturn(id) {
-  try {
-    while (true) {
-      const job=await api('/jobs/'+id);state.job=job;
-      if (job.status==='done') {sessionStorage.removeItem('dearme-active-job');return job;}
-      else if (job.status==='error') {sessionStorage.removeItem('dearme-active-job');throw new Error(job.error||'Try generating your sticker again.');}
-      else {showProgress(job);await new Promise(resolve=>setTimeout(resolve,1400));}
-    }
-  } finally {clearInterval(state.timer);$('#progress-panel').hidden=true;setBusy(false);}
-}
-function showMultiResult(jobs) {
-  const cards=[];
-  for (const job of jobs) {
-    const original=el('article',{class:'result-card'},[
-      el('div',{class:'sticker-preview'},[el('img',{src:job.source_image_url,alt:'Original reference photo'})]),
-      el('div',{class:'result-info'},[el('h3',{text:'Your original photo'}),el('p',{text:'The moment your sticker started with.'})])
-    ]);
-    cards.push(original,...job.result.objects.map((obj,index)=>stickerCard(obj,{stickerId:'job:'+job.id+':'+index})));
-  }
-  $('#result-cards').replaceChildren(...cards);
-  if (jobs.length===1) {
-    const usage=jobs[0].result.usage||{};
-    const parts=[];
-    if (typeof usage.bobcoins==='number') parts.push(Number(usage.bobcoins.toFixed(6))+' Bobcoins');
-    if (typeof usage.elapsed_seconds==='number') parts.push(Math.round(usage.elapsed_seconds)+' seconds');
-    if (typeof usage.total_tokens==='number') parts.push(usage.total_tokens.toLocaleString()+' tokens');
-    $('#usage-summary').textContent=parts.join(' · ');
-  } else {
-    $('#usage-summary').textContent=jobs.length+' photos processed';
-  }
-  $('#results-section').hidden=false;
-  const total=jobs.reduce((n,j)=>n+(j.result.objects?.length||0),0);
-  $('#results-title').textContent=total===1?'A little something to keep.':'A few little things to keep.';
 }
 async function useExample(example) {
   if (state.busy) return;
@@ -303,27 +199,22 @@ async function initialize() {
     if (active) {
       const job=await api('/jobs/'+active);
       state.started=Date.parse(job.created_at);state.job=job;
+      $('#photo-preview').src=job.source_image_url;$('#selected-photo').hidden=false;$('#upload-zone').hidden=true;
       $('#subject').value=job.subject||'';$('#instructions').value=job.instructions||'';
       for (const option of document.querySelectorAll('input[name="style"]')) option.checked=option.value===job.style;
       $('#sticker-count').value=String(job.count||1);
       const savedPhoto=await fetch(job.source_image_url);
-      if (savedPhoto.ok) {
-        const file=new File([await savedPhoto.blob()],'saved-reference.png',{type:'image/png'});
-        state.files=[{file,preview:job.source_image_url,caption:'saved-reference.png'}];
-        renderPhotoGrid();
-      }
-      setBusy(true);updateElapsed();state.timer=setInterval(updateElapsed,1000);
-      const result=await followJobReturn(active);
-      if (result) showMultiResult([result]);
-      await loadLibrary();
+      if (savedPhoto.ok) state.file=new File([await savedPhoto.blob()],'saved-reference.png',{type:'image/png'});
+      setBusy(true);updateElapsed();state.timer=setInterval(updateElapsed,1000);await followJob(active);
     }
   } catch(error) {$('#connection').textContent='Server unavailable';$('#connection').classList.add('unavailable');showError(error.message);}
 }
 $('#generate-form').addEventListener('submit',generate);
 $('#upload-zone').addEventListener('click',()=>$('#photo-file').click());
-$('#photo-file').addEventListener('change',event=>{addFiles(event.target.files);event.target.value='';});
+$('#change-photo').addEventListener('click',()=>$('#photo-file').click());
+$('#photo-file').addEventListener('change',event=>selectFile(event.target.files[0]));
 for (const name of ['dragenter','dragover']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();if(!state.busy)$('#upload-zone').classList.add('dragging');});
-for (const name of ['dragleave','drop']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();$('#upload-zone').classList.remove('dragging');if(name==='drop'&&!state.busy)addFiles(event.dataTransfer.files);});
+for (const name of ['dragleave','drop']) $('#upload-zone').addEventListener(name,event=>{event.preventDefault();$('#upload-zone').classList.remove('dragging');if(name==='drop'&&!state.busy)selectFile(event.dataTransfer.files[0]);});
 window.addEventListener('hashchange',switchView);
 window.addEventListener('beforeunload',()=>{if(state.preview)URL.revokeObjectURL(state.preview);});
 initialize();
