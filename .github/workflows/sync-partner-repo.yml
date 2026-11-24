@@ -1,0 +1,43 @@
+name: Sync partner repository
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve partner repository
+        id: partner
+        run: |
+          if [ "${{ github.repository }}" = "lrhlin/Living-Scrapbook-DearMe" ]; then
+            echo "repo=PetalAdrift/Living-Scrapbook-DearMe" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo=lrhlin/Living-Scrapbook-DearMe" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push to partner if needed
+        env:
+          PARTNER: ${{ steps.partner.outputs.repo }}
+          TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "REPO_SYNC_TOKEN is not configured; skipping partner sync."
+            exit 0
+          fi
+          git remote add partner "https://x-access-token:${TOKEN}@github.com/${PARTNER}.git"
+          git fetch partner main
+          if git rev-parse --verify partner/main >/dev/null 2>&1 \
+            && [ "$(git rev-parse HEAD)" = "$(git rev-parse partner/main)" ]; then
+            echo "Partner already at $(git rev-parse --short HEAD)."
+            exit 0
+          fi
+          git push partner HEAD:main
