@@ -8,9 +8,9 @@
   <title>Dear Me — My Scrapbook</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23234c40'/%3E%3Cpath d='M10 11q7-3 10 2 4-5 10-2v20q-6-3-10 1-4-4-10-1Z' fill='%23fff6e7'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/assets/studio.css">
-  <link rel="stylesheet" href="/assets/scrapbook.css">
+  <link rel="stylesheet" href="/assets/scrapbook.css?v=templates1">
   <script src="/assets/studio.js" defer></script>
-  <script src="/assets/scrapbook.js" defer></script>
+  <script src="/assets/scrapbook.js?v=templates1" defer></script>
 </head>
 <body>
   <svg class="icon-defs" aria-hidden="true"><defs>
@@ -44,6 +44,18 @@
         <div class="book-composer">
           <form id="entry-form" class="entry-writing">
             <div class="card-heading"><h2>Tell your story</h2><span class="step-note">A little or a lot.</span></div>
+            <fieldset class="template-picker" aria-labelledby="template-heading">
+              <legend id="template-heading">Choose a page style</legend>
+              <p class="template-intro">Pick a look for your memory. You can change it anytime.</p>
+              <div class="template-grid">
+                <button type="button" class="template-option active" data-template="minimal" aria-pressed="true"><span class="template-preview preview-minimal"><i></i><b></b><small></small></span><strong>Minimal</strong><span>Clean &amp; simple</span></button>
+                <button type="button" class="template-option" data-template="botanical" aria-pressed="false"><span class="template-preview preview-botanical"><i>❧</i><b></b><small></small></span><strong>Botanical</strong><span>Soft &amp; leafy</span></button>
+                <button type="button" class="template-option" data-template="celebration" aria-pressed="false"><span class="template-preview preview-celebration"><i>✦</i><b></b><small></small></span><strong>Celebration</strong><span>Bright &amp; festive</span></button>
+                <button type="button" class="template-option" data-template="travel" aria-pressed="false"><span class="template-preview preview-travel"><i>✈</i><b></b><small></small></span><strong>Travel</strong><span>Postcard style</span></button>
+                <button type="button" class="template-option" data-template="cozy" aria-pressed="false"><span class="template-preview preview-cozy"><i>♥</i><b></b><small></small></span><strong>Cozy</strong><span>Warm &amp; gentle</span></button>
+                <button type="button" class="template-option" data-template="vintage" aria-pressed="false"><span class="template-preview preview-vintage"><i>✿</i><b></b><small></small></span><strong>Vintage</strong><span>Classic &amp; nostalgic</span></button>
+              </div>
+            </fieldset>
             <label for="entry-title">Give it a title <span class="optional">optional</span></label>
             <input id="entry-title" maxlength="120" placeholder="A day worth keeping">
             <label for="entry-date">Memory date</label>

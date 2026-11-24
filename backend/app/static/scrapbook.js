@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const book={catalog:[],selected:new Map(),current:null,page:0,busy:false,loading:null};
+  const book={catalog:[],selected:new Map(),current:null,page:0,busy:false,loading:null,theme:'minimal'};
   const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const formatDate=value=>new Date(value+'T12:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
   const smooth=()=>matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
@@ -19,6 +19,7 @@
   function error(message) {$('#entry-error').textContent=message;$('#entry-error').hidden=false;}
   function updateControls() {
     const amount=book.selected.size;
+    for (const button of document.querySelectorAll('.template-option')) button.disabled=book.busy;
     $('#selected-sticker-count').textContent=amount+' selected';
     $('#clear-sticker-selection').disabled=book.busy||!amount;
     $('#entry-character-count').textContent=$('#entry-text').value.length.toLocaleString()+' / 20,000';
@@ -77,7 +78,7 @@
         el('div',{class:'saved-entry-thumb'},[el('img',{src:entry.image_url,alt:'',loading:'lazy'})]),
         el('div',{class:'saved-entry-card-info'},[
           el('span',{class:'saved-entry-date',text:formatDate(entry.date)}),el('h3',{text:entry.title}),
-          el('p',{text:entry.page_count+' '+(entry.page_count===1?'page':'pages')+' · '+entry.sticker_count+' '+(entry.sticker_count===1?'sticker':'stickers')})
+          el('p',{text:(entry.theme_label||'Minimal')+' · '+entry.page_count+' '+(entry.page_count===1?'page':'pages')+' · '+entry.sticker_count+' '+(entry.sticker_count===1?'sticker':'stickers')})
         ])
       ]);
       button.addEventListener('click',async()=>{try {openEntry(await bookApi('/entries/'+entry.id));} catch(e){error(e.message);}});
@@ -102,7 +103,7 @@
     book.current=entry;book.page=0;
     $('#saved-entry-title').textContent=entry.title;
     $('#entry-transcript-text').textContent=entry.text||'This entry tells its story with stickers.';
-    $('#saved-entry-summary').textContent=formatDate(entry.date)+' · '+entry.page_count+' '+(entry.page_count===1?'page':'pages')+' · '+entry.sticker_count+' '+(entry.sticker_count===1?'sticker':'stickers');
+    $('#saved-entry-summary').textContent=formatDate(entry.date)+' · '+(entry.theme_label||'Minimal')+' style · '+entry.page_count+' '+(entry.page_count===1?'page':'pages')+' · '+entry.sticker_count+' '+(entry.sticker_count===1?'sticker':'stickers');
     $('#entry-download-all').href=entry.download_url;
     $('#entry-viewer').hidden=false;showPage();
     history.replaceState(null,'','?entry='+entry.id+'#scrapbook');
@@ -139,7 +140,7 @@
     $('#entry-error').hidden=true;setBusy(true);
     try {
       const entry=await bookApi('/entries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        title:$('#entry-title').value,text:$('#entry-text').value,date:$('#entry-date').value,sticker_ids:[...book.selected.keys()]
+        title:$('#entry-title').value,text:$('#entry-text').value,date:$('#entry-date').value,sticker_ids:[...book.selected.keys()],theme:book.theme
       })});
       openEntry(entry);clearDraft();await loadEntries();
       toast('Added to your scrapbook · '+entry.page_count+' '+(entry.page_count===1?'page':'pages'));
@@ -154,6 +155,13 @@
 
   $('#entry-date').value=today();
   $('#entry-form').addEventListener('submit',addEntry);
+  for (const button of document.querySelectorAll('.template-option')) button.addEventListener('click',()=>{
+    if(book.busy)return;
+    book.theme=button.dataset.template;
+    for (const option of document.querySelectorAll('.template-option')) {
+      const selected=option===button;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
+    }
+  });
   $('#entry-text').addEventListener('input',updateControls);
   $('#entry-phrase').addEventListener('input',updateControls);
   $('#entry-mode').addEventListener('change',updateWritingMode);

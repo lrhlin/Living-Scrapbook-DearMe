@@ -21,6 +21,7 @@ class EntryCreate(BaseModel):
     text: str = Field(default="", max_length=20_000)
     date: CalendarDate
     sticker_ids: list[str] = Field(default_factory=list, max_length=50)
+    theme: Literal["minimal", "botanical", "celebration", "travel", "cozy", "vintage"] = "minimal"
 
     @field_validator("title", "text")
     @classmethod
@@ -73,7 +74,7 @@ async def create_writing_draft(payload: WritingDraftRequest) -> dict[str, str]:
 @router.post("/entries", status_code=201)
 async def create_entry(payload: EntryCreate) -> dict:
     try:
-        return await scrapbook.create_entry(payload.title, payload.text, payload.date, payload.sticker_ids)
+        return await scrapbook.create_entry(payload.title, payload.text, payload.date, payload.sticker_ids, payload.theme)
     except (ValueError, SVGError) as exc:
         raise HTTPException(400, str(exc)) from None
     except BobError as exc:
