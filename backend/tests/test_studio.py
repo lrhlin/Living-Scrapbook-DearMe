@@ -70,7 +70,10 @@ class LocalPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.previous = settings.upload_dir
         settings.upload_dir = self.temp.name
-        self.ready = patch('app.api.v1.studio.status', return_value={"configured":True,"cli_available":True,"renderer_available":True})
+        self.ready = patch('app.api.v1.studio.status', return_value={"providers":{
+            "openai":{"ready":True,"name":"OpenAI","key_file":"oaikey.txt"},
+            "bob":{"ready":True,"name":"IBM Bob","key_file":"bobkey.txt"},
+        }})
         self.ready.start()
         self.image = BytesIO()
         Image.new('RGB', (60, 40), '#888').save(self.image, format='JPEG')
@@ -87,7 +90,7 @@ class LocalPipelineTests(unittest.IsolatedAsyncioTestCase):
     async def test_upload_job_render_library_download_and_disk_reload(self):
         reply = {"objects":[{"label":"Cat head","description":"A simple portrait","svg":SVG}]}
         with patch('app.services.object_extractor.run_bob', new=AsyncMock(return_value=(reply, {"bobcoins":0.012,"total_tokens":None}))) as provider:
-            response = await self.client.post('/api/v1/studio/jobs', files={"file":('cat.jpg',self.image.getvalue(),'image/jpeg')}, data={"subject":"Cat head only","style":"paper","count":"1"})
+            response = await self.client.post('/api/v1/studio/jobs', files={"file":('cat.jpg',self.image.getvalue(),'image/jpeg')}, data={"subject":"Cat head only","style":"paper","count":"1","provider":"bob"})
             self.assertEqual(response.status_code, 202, response.text)
             job_id=response.json()['id']
             for _ in range(100):
@@ -125,6 +128,7 @@ class LocalPipelineTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_public_routes_never_serve_arbitrary_files(self):
         self.assertEqual((await self.client.get('/api/v1/studio/jobs/not-a-job/files/bobkey.txt')).status_code,404)
+        self.assertEqual((await self.client.get('/api/v1/studio/jobs/not-a-job/files/oaikey.txt')).status_code,404)
         self.assertEqual((await self.client.get('/api/v1/studio/examples/cat/bobkey.txt')).status_code,404)
         home=await self.client.get('/')
         self.assertEqual(home.status_code,200)

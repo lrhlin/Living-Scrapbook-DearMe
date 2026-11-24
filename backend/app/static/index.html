@@ -34,10 +34,10 @@
       <a href="#workflow" data-view="workflow" class="nav-link"><svg><use href="#i-book"/></svg> How it works</a>
     </nav>
     <div class="sidebar-note"><span class="little-star">✳</span><p>The little things<br>are the big things.</p><span>Make something to remember.</span></div>
-    <div class="sidebar-footer"><span class="local-dot"></span> Your local workspace <span class="footer-line">Stickers by IBM Bob</span></div>
+    <div class="sidebar-footer"><span class="local-dot"></span> Your local workspace <span class="footer-line">Little moments, illustrated</span></div>
   </aside>
   <div class="app-shell">
-    <header class="topbar"><span class="breadcrumb">Dear Me <span>/</span> <strong id="page-name">My scrapbook</strong></span><span class="connection" id="connection">Checking Bob…</span></header>
+    <header class="topbar"><span class="breadcrumb">Dear Me <span>/</span> <strong id="page-name">My scrapbook</strong></span><span class="connection" id="connection">Checking the studio…</span></header>
     <main id="main">
       <section id="scrapbook-view" class="view">
         <div class="page-heading compact book-heading"><div><div class="eyebrow"><span></span> YOUR MOMENTS, ON THE PAGE</div><h1>A little story.<br>A place to <em>keep it.</em></h1><p>Pick your stickers, write it yourself, or start with a phrase and let AI help.</p></div><span class="book-local-note"><svg><use href="#i-check"/></svg> Automatically arranged.<br>Saved in your scrapbook.</span></div>
@@ -123,21 +123,24 @@
           </section>
           <form class="settings-card" id="generate-form">
             <div class="card-heading"><h2>Make it yours</h2><span class="badge">ILLUSTRATED STICKERS</span></div>
+            <label for="sticker-provider">Sticker maker</label>
+            <select id="sticker-provider" class="provider-select"><option value="openai" selected>OpenAI · raster PNG</option><option value="bob">IBM Bob · vector SVG + PNG</option></select>
+            <p id="provider-detail" class="provider-detail">Detailed image illustrations · oaikey.txt</p>
             <label for="subject">What would you like to keep? <span class="optional">optional</span></label>
             <input id="subject" name="subject" maxlength="120" placeholder="e.g. my cat’s face, the school building">
-            <div class="field-help">Leave it blank and Bob will find the main subject.</div>
+            <div class="field-help">Leave it blank to illustrate the main subject.</div>
             <fieldset class="style-fieldset"><legend>Choose a feeling</legend><div class="style-options">
               <label class="style-option"><input type="radio" name="style" value="paper" checked><span class="style-art paper-art"><i></i><i></i><i></i></span><strong>Paper cut</strong><small>Warm & handmade</small></label>
               <label class="style-option"><input type="radio" name="style" value="soft"><span class="style-art soft-art"><i></i><i></i><i></i></span><strong>Soft illustration</strong><small>Gentle & detailed</small></label>
               <label class="style-option"><input type="radio" name="style" value="ink"><span class="style-art ink-art"><i></i><i></i><i></i></span><strong>Ink sketch</strong><small>Simple & expressive</small></label>
             </div></fieldset>
-            <details class="more-options"><summary>A few more details <span>+</span></summary><label for="instructions">Anything Bob should know?</label><textarea id="instructions" maxlength="600" rows="2" placeholder="A portrait of the face and ears, with the whiskers included."></textarea><label for="sticker-count">Maximum stickers from this photo</label><select id="sticker-count"><option value="1">1 sticker · focus on one subject</option><option value="2">Up to 2 stickers</option><option value="3">Up to 3 stickers</option></select></details>
+            <details class="more-options"><summary>A few more details <span>+</span></summary><label for="instructions">A few details to keep</label><textarea id="instructions" maxlength="600" rows="2" placeholder="A portrait of the face and ears, with the whiskers included."></textarea><label id="sticker-count-label" for="sticker-count">Sticker variations per photo</label><select id="sticker-count"><option value="1">1 sticker</option><option value="2">2 variations</option><option value="3">3 variations</option></select></details>
             <button class="generate-button" id="generate-button" type="submit" disabled><svg><use href="#i-spark"/></svg><span>Make my sticker</span></button>
-            <p class="cost-note">Uses IBM Bob · <strong id="spend-limit">0.5</strong> Bobcoins limit per photo<br>Your selected photos are sent to Bob for illustration.</p>
+            <p id="provider-cost" class="cost-note">Uses your OpenAI API account · 1024 × 1024 PNG<br>Your selected photos are sent to OpenAI for illustration.</p>
           </form>
         </div>
         <div id="generation-error" class="error-message" role="alert" hidden></div>
-        <section id="progress-panel" class="progress-panel" aria-live="polite" hidden><span class="spinner"></span><div><h3 id="progress-title">Your photo is getting a new life.</h3><p id="progress-detail">Waiting for Bob…</p></div><span id="elapsed-time" class="elapsed-time">0:00</span></section>
+        <section id="progress-panel" class="progress-panel" aria-live="polite" hidden><span class="spinner"></span><div><h3 id="progress-title">Your photo is getting a new life.</h3><p id="progress-detail">Preparing your illustration…</p></div><span id="elapsed-time" class="elapsed-time">0:00</span></section>
         <section class="results-section" id="results-section" hidden aria-labelledby="results-title"><div class="section-heading"><div><div class="eyebrow">FRESH FROM YOUR PHOTO</div><h2 id="results-title">A little something to keep.</h2></div><span id="usage-summary" class="usage-summary"></span></div><div id="result-cards" class="result-cards"></div></section>
         <section class="examples-section"><div class="section-heading"><div><div class="eyebrow">A FEW LITTLE POSSIBILITIES</div><h2>Every photo has a keepsake in it.</h2></div><span class="section-aside">Try a photo below, or bring your own.</span></div><div id="examples-grid" class="examples-grid"></div><p class="example-note">Illustrated by Bob and ready for your scrapbook. Select a sample sticker, or use its photo to create your own version.</p></section>
         <div class="studio-bottom"><svg><use href="#i-check"/></svg> Transparent backgrounds <span>·</span> Crisp at any size <span>·</span> Yours to download and reuse</div>
@@ -148,8 +151,8 @@
         <div class="workflow-grid">
           <article><span class="workflow-icon"><svg><use href="#i-book"/></svg></span><h2>Put a story on the page.</h2><p>Choose stickers in My scrapbook, add your words and click Add. Dear Me arranges them into pages and saves the entry in your collection.</p></article>
           <article><span class="workflow-icon"><svg><use href="#i-image"/></svg></span><h2>Bring a real moment.</h2><p>In Sticker studio, upload a photo, pick a subject and choose an illustration style. A pet, a place or a favorite object makes a lovely starting point.</p></article>
-          <article><span class="workflow-icon"><svg><use href="#i-spark"/></svg></span><h2>Bob illustrates your subject.</h2><p>IBM Bob turns the subject in your photo into an original vector illustration, keeping its distinctive colors, shapes and details.</p></article>
-          <article><span class="workflow-icon"><svg><use href="#i-check"/></svg></span><h2>A finishing touch.</h2><p>The app adds a rounded white border that follows the illustration’s shapes, then creates an SVG and a transparent PNG for you.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-spark"/></svg></span><h2>Choose your sticker maker.</h2><p>OpenAI creates detailed PNG illustrations with a white sticker border. IBM Bob writes vector artwork, which the app finishes as SVG and PNG. Choose your favorite in Sticker studio.</p></article>
+          <article><span class="workflow-icon"><svg><use href="#i-check"/></svg></span><h2>A finishing touch.</h2><p>Each sticker has a transparent background and is ready for your library. Both formats work in all six scrapbook page styles.</p></article>
           <article><span class="workflow-icon"><svg><use href="#i-grid"/></svg></span><h2>Keep it, use it, make more.</h2><p>Your stickers stay in the library, ready for another story. Select Use in scrapbook to add one to your next entry, or download it to use elsewhere.</p></article>
         </div>
         <div class="workflow-footnote"><h2>Make it a collection.</h2><p>Come back to your saved entries, turn through their pages and read the words you kept. Download a single page as SVG or PNG, or gather the whole entry in a ZIP.</p><a href="#scrapbook">Start a scrapbook entry</a></div>

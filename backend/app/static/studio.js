@@ -2,7 +2,8 @@
 
 const $ = (selector) => document.querySelector(selector);
 const MAX_PHOTOS=3;
-const state = {files:[], previews:[], ready:false, busy:false, job:null, started:0, timer:null, examples:[]};
+const state = {files:[], previews:[], ready:false, busy:false, job:null, started:0, timer:null, examples:[], provider:'openai', status:null};
+const providerNames={openai:'OpenAI',bob:'IBM Bob'};
 const names = {scrapbook:'My scrapbook', studio:'Sticker studio', library:'My sticker library', workflow:'How it works'};
 const styleNames = {paper:'Paper cut', soft:'Soft illustration', ink:'Ink sketch'};
 
@@ -34,6 +35,27 @@ function toast(message) {
   clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>{$('#toast').hidden=true;},4000);
 }
 function showError(message) {$('#generation-error').textContent=message;$('#generation-error').hidden=false;}
+function selectProvider(value) {
+  state.provider=value==='bob'?'bob':'openai';
+  localStorage.setItem('dearme-sticker-provider',state.provider);
+  $('#sticker-provider').value=state.provider;
+  const provider=state.status.providers[state.provider];
+  state.ready=provider.ready;
+  $('#provider-detail').textContent=provider.model+' · '+provider.key_file;
+  $('#connection').textContent=state.ready?provider.name+' is ready':'Set up '+provider.name;
+  $('#connection').classList.toggle('ready',state.ready);$('#connection').classList.toggle('unavailable',!state.ready);
+  $('#setup-message').hidden=state.ready;
+  $('#setup-message').textContent='Add your '+provider.name+' API key to '+provider.key_file+' at the project root, then refresh the page.';
+  $('#provider-cost').textContent=state.provider==='openai'
+    ?'Uses your OpenAI API account · 1024 × 1024 PNG. Each variation is a generated image.'
+    :'Uses IBM Bob · '+state.status.max_bobcoins+' Bobcoins limit per photo. Includes SVG and PNG.';
+  $('#sticker-count-label').textContent=state.provider==='openai'?'Sticker variations per photo':'Maximum stickers from this photo';
+  for (const option of $('#sticker-count').options) {
+    const amount=Number(option.value);
+    option.textContent=amount===1?'1 sticker':state.provider==='openai'?amount+' variations':'Up to '+amount+' stickers';
+  }
+  setBusy(state.busy);
+}
 function setBusy(busy) {
   state.busy=busy;
   for (const input of document.querySelectorAll('#generate-form input,#generate-form textarea,#generate-form select')) input.disabled=busy;
@@ -79,10 +101,10 @@ function stickerCard(sticker,options={}) {
   const info=el('div',{class:'result-info'});
   if (options.date) info.append(el('div',{class:'library-date',text:options.date}));
   info.append(el('h3',{text:sticker.label}),el('p',{text:sticker.description||styleNames[sticker.style]||'Your illustrated sticker'}));
-  info.append(el('div',{class:'download-actions'},[
-    download(sticker.svg_url,'SVG','dear-me-sticker.svg'),
-    download(sticker.image_url,'PNG','dear-me-sticker.png')
-  ]));
+  info.append(el('p',{class:'sticker-format',text:(providerNames[sticker.provider||'bob'])+' · '+(sticker.format==='png'?'PNG':'SVG + PNG')}));
+  const downloads=[download(sticker.image_url,'PNG','dear-me-sticker.png')];
+  if (sticker.svg_url) downloads.unshift(download(sticker.svg_url,'SVG','dear-me-sticker.svg'));
+  info.append(el('div',{class:'download-actions'},downloads));
   if (options.jobId) info.append(el('a',{class:'view-original',href:'/?job='+options.jobId+'#studio',text:'View with original photo'}));
   if (options.stickerId) {
     const use=el('button',{type:'button',class:'use-in-scrapbook',text:'Use in scrapbook'});
@@ -92,7 +114,7 @@ function stickerCard(sticker,options={}) {
   return el('article',{class:'result-card'},[el('div',{class:'sticker-preview'},[image]),info]);
 }
 function showResults(jobs) {
-  const cards=[];let bobcoins=0,seconds=0,tokens=0;
+  const cards=[],models=new Set();let bobcoins=0,seconds=0,tokens=0;
   for (const job of jobs) {
     cards.push(el('article',{class:'result-card'},[
       el('div',{class:'sticker-preview'},[el('img',{src:job.source_image_url,alt:'Original reference photo: '+job.photo_name})]),
@@ -100,12 +122,13 @@ function showResults(jobs) {
     ]));
     cards.push(...job.result.objects.map((obj,index)=>stickerCard(obj,{stickerId:'job:'+job.id+':'+index})));
     const usage=job.result.usage||{};
+    models.add(usage.model||providerNames[job.provider||'bob']);
     if (typeof usage.bobcoins==='number') bobcoins+=usage.bobcoins;
     if (typeof usage.elapsed_seconds==='number') seconds+=usage.elapsed_seconds;
     if (typeof usage.total_tokens==='number') tokens+=usage.total_tokens;
   }
   $('#result-cards').replaceChildren(...cards);
-  const parts=[];
+  const parts=[...models];
   if (bobcoins) parts.push(Number(bobcoins.toFixed(6))+' Bobcoins');
   if (seconds) parts.push(Math.round(seconds)+' seconds');
   if (tokens) parts.push(tokens.toLocaleString()+' tokens');
@@ -119,7 +142,7 @@ function updateElapsed() {
 }
 function showProgress(job) {
   $('#progress-panel').hidden=false;
-  const messages={queued:'Your photo is in line. We’ll start illustrating it shortly.',generating:'Bob is reading your photo and illustrating the subject.',finishing:'Adding the sticker border and preparing your downloads.'};
+  const messages={queued:'Your photo is in line. We’ll start illustrating it shortly.',generating:providerNames[job.provider||state.provider]+' is illustrating your photo.',finishing:'Preparing your sticker downloads.'};
   $('#progress-detail').textContent=messages[job.status]||'Preparing your photo…';
 }
 async function followJobs(jobs) {
@@ -135,7 +158,7 @@ async function followJobs(jobs) {
       const finished=completed.length+errors.length;
       $('#progress-panel').hidden=false;
       $('#progress-title').textContent=finished+' of '+jobs.length+' photos complete';
-      $('#progress-detail').textContent='Bob is illustrating each photo in the queue.';
+      $('#progress-detail').textContent=providerNames[[...pending.values()][0].provider||'bob']+' is illustrating each photo in the queue.';
       await new Promise(resolve=>setTimeout(resolve,1400));
     }
   }
@@ -152,6 +175,7 @@ async function generate(event) {
     for (let index=0;index<files.length;index++) {
       const file=files[index],form=new FormData();form.append('file',file);
       form.append('style',style);form.append('subject',subject);form.append('instructions',instructions);form.append('count',count);
+      form.append('provider',state.provider);
       $('#progress-panel').hidden=false;$('#progress-title').textContent='Uploading photo '+(index+1)+' of '+files.length;
       try {jobs.push({...await api('/jobs',{method:'POST',body:form}),photo_name:file.name});}
       catch(error) {uploadError=error.message;break;}
@@ -211,16 +235,8 @@ async function loadLibrary() {
 async function initialize() {
   switchView();loadExamples();loadLibrary();
   try {
-    const status=await api('/status');
-    state.ready=status.configured&&status.cli_available&&status.renderer_available;
-    $('#spend-limit').textContent=status.max_bobcoins;
-    $('#connection').textContent=state.ready?'Bob is ready':'Setup needed';
-    $('#connection').classList.add(state.ready?'ready':'unavailable');
-    if (!state.ready) {
-      $('#setup-message').hidden=false;
-      $('#setup-message').textContent='To create new stickers, add your IBM Bob key to bobkey.txt at the project root and run ./start-local.sh. You can explore the examples below now.';
-    }
-    setBusy(false);
+    state.status=await api('/status');
+    selectProvider(localStorage.getItem('dearme-sticker-provider')||state.status.default_provider);
     const requested=new URLSearchParams(location.search).get('job');
     const rawJobs=sessionStorage.getItem('dearme-active-jobs');
     let activeJobs=[];
@@ -246,8 +262,10 @@ async function initialize() {
       setBusy(false);
     }
   } catch(error) {$('#connection').textContent='Server unavailable';$('#connection').classList.add('unavailable');showError(error.message);}
+  finally {clearInterval(state.timer);$('#progress-panel').hidden=true;setBusy(false);}
 }
 $('#generate-form').addEventListener('submit',generate);
+$('#sticker-provider').addEventListener('change',event=>selectProvider(event.target.value));
 $('#upload-zone').addEventListener('click',()=>$('#photo-file').click());
 $('#change-photo').addEventListener('click',()=>$('#photo-file').click());
 $('#photo-file').addEventListener('change',event=>{selectFiles(event.target.files);event.target.value='';});

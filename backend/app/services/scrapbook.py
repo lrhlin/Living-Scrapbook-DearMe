@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import base64
 from datetime import date, datetime, timezone
 from functools import lru_cache
 import json
@@ -13,7 +14,7 @@ from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 import xml.etree.ElementTree as ET
 
-from PIL import ImageFont
+from PIL import Image, ImageFont
 
 from app.core.config import PROJECT_ROOT, settings
 from app.services import studio_jobs
@@ -57,11 +58,23 @@ def resolve_sticker(sticker_id: str) -> tuple[dict, Path]:
         job = studio_jobs.get_job(job_id)
         if job and job.get("status") == "done":
             objects = job.get("result", {}).get("objects", [])
-            path = studio_jobs.job_root() / job_id / f"sticker-{index}.svg"
+            extension = "png" if index < len(objects) and objects[index].get("format") == "png" else "svg"
+            path = studio_jobs.job_root() / job_id / f"sticker-{index}.{extension}"
             if index < len(objects) and path.is_file():
                 return {"id": sticker_id, "label": objects[index]["label"], "source": "Your sticker",
                         "image_url": objects[index]["image_url"]}, path
     raise ValueError("Refresh the sticker picker and select your stickers again.")
+
+
+def load_artwork(path: Path) -> ET.Element:
+    if path.suffix == ".svg":
+        return validate_svg(path.read_text())
+    with Image.open(path) as image:
+        width, height = image.size
+    root = ET.Element(f"{{{NS}}}svg", {"viewBox": f"0 0 {width} {height}"})
+    _node(root, "image", {"width": width, "height": height,
+                           "href": "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()})
+    return root
 
 
 def sticker_catalog() -> list[dict]:
@@ -427,7 +440,7 @@ async def create_entry(title: str, text: str, day: date, sticker_ids: list[str],
         raise ValueError("Choose one of the available scrapbook styles.")
     sticker_ids = list(dict.fromkeys(sticker_ids))
     resolved = [resolve_sticker(identifier) for identifier in sticker_ids]
-    artwork = [validate_svg(path.read_text()) for _, path in resolved]
+    artwork = [load_artwork(path) for _, path in resolved]
     title = title.strip() or "A little memory"
     layouts = paginate(title, text.strip(), len(artwork), theme_id)
     entry_id = uuid4().hex
@@ -442,8 +455,8 @@ async def create_entry(title: str, text: str, day: date, sticker_ids: list[str],
     with TemporaryDirectory(prefix=".building-", dir=root) as temp:
         folder = Path(temp) / "entry"
         folder.mkdir()
-        for i, svg in enumerate(artwork):
-            (folder / f"sticker-{i}.svg").write_text(ET.tostring(svg, encoding="unicode"))
+        for i, (_, path) in enumerate(resolved):
+            (folder / f"sticker-{i}{path.suffix}").write_bytes(path.read_bytes())
         for i, layout in enumerate(layouts):
             name = f"page-{i + 1}"
             (folder / f"{name}.svg").write_text(page_svg(entry, layout, i, artwork))

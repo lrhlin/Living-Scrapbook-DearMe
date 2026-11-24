@@ -15,9 +15,10 @@ async def extract_objects(
     request: Request,
     file: UploadFile = File(...),
     style: str = Form(default="watercolor"),
+    provider: str = Form(default="openai"),
 ) -> ExtractionResult:
-    """Compatibility endpoint for the original Next.js client; now uses Bob."""
-    job = await create(file=file, style=STYLE_ALIASES.get(style, style), subject="", instructions="", count=1)
+    """Generate a sticker for the original Next.js client."""
+    job = await create(file=file, style=STYLE_ALIASES.get(style, style), subject="", instructions="", count=1, provider=provider)
     while job["status"] not in {"done", "error"}:
         await asyncio.sleep(0.5)
         job = get_job(job["id"])
@@ -28,6 +29,8 @@ async def extract_objects(
     result.source_image_url = base + result.source_image_url
     for obj in result.objects:
         obj.image_url = base + obj.image_url
-        obj.svg_url = base + obj.svg_url
-        obj.artwork_url = base + obj.artwork_url
+        if obj.svg_url:
+            obj.svg_url = base + obj.svg_url
+        if obj.artwork_url:
+            obj.artwork_url = base + obj.artwork_url
     return result

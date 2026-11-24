@@ -39,7 +39,7 @@ fi
 echo ""
 echo "Dear Me · Living Scrapbook"
 echo "Open http://127.0.0.1:${DEARME_PORT:-8000}"
-echo "Generating a sticker sends the photo to IBM Bob and uses Bobcoins."
+echo "Choose OpenAI PNG or IBM Bob SVG in Sticker studio."
 echo ""
 cd backend
 exec venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "${DEARME_PORT:-8000}"

@@ -19,11 +19,18 @@ EXAMPLES = {
 
 @router.get("/status")
 def status() -> dict:
+    renderer = bool(shutil.which("node") and (PROJECT_ROOT / "tools/node_modules/@resvg/resvg-js").is_dir())
+    bob_ready = bool(settings.read_bob_key() and cli_path() and renderer)
     return {
-        "configured": bool(settings.read_bob_key()), "cli_available": bool(cli_path()),
-        "renderer_available": bool(shutil.which("node") and (PROJECT_ROOT / "tools/node_modules/@resvg/resvg-js").is_dir()),
+        "default_provider": settings.sticker_provider,
+        "providers": {
+            "openai": {"name": "OpenAI", "ready": bool(settings.read_openai_key()),
+                       "format": "PNG", "model": settings.openai_image_model, "key_file": "oaikey.txt"},
+            "bob": {"name": "IBM Bob", "ready": bob_ready,
+                    "format": "SVG + PNG", "model": "Bob Shell · Agent mode", "key_file": "bobkey.txt"},
+        },
+        "renderer_available": renderer,
         "max_bobcoins": settings.bob_max_cost, "max_upload_mb": settings.max_upload_size_mb,
-        "provider": "IBM Bob", "output": "SVG illustration with a locally generated border",
     }
 
 
@@ -49,18 +56,22 @@ def example_file(slug: str, kind: str) -> FileResponse:
 async def create(
     file: UploadFile = File(...), style: str = Form("paper"), subject: str = Form(""),
     instructions: str = Form(""), count: int = Form(1),
+    provider: str = Form("openai"),
 ) -> dict:
+    if provider not in {"openai", "bob"}:
+        raise HTTPException(400, "Choose OpenAI or IBM Bob for your stickers.")
     if style not in STYLES or not 1 <= count <= 3 or len(subject) > 120 or len(instructions) > 600:
         raise HTTPException(400, "Choose a style, one to three stickers, and shorter subject instructions.")
     ready = status()
-    if not all(ready[k] for k in ("configured", "cli_available", "renderer_available")):
-        raise HTTPException(503, "Add bobkey.txt and run ./start-local.sh to set up Bob.")
+    selected = ready["providers"][provider]
+    if not selected["ready"]:
+        raise HTTPException(503, f"Add your API key to {selected['key_file']} and finish {selected['name']} setup.")
     limit = settings.max_upload_size_mb * 1024 * 1024
     content = await file.read(limit + 1)
     if len(content) > limit:
         raise HTTPException(413, f"Choose a photo smaller than {settings.max_upload_size_mb} MB.")
     try:
-        return await studio_jobs.create_job(content, style=style, subject=subject.strip(), instructions=instructions.strip(), count=count)
+        return await studio_jobs.create_job(content, style=style, subject=subject.strip(), instructions=instructions.strip(), count=count, provider=provider)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
     except BobError as exc:

@@ -113,11 +113,13 @@ class StyleProfile(BaseModel):
 class ExtractedObject(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     label: str                  # "coffee cup", "receipt", etc.
-    style: str                  # "watercolor" | "lineart" | "collage" | "vintage"
+    style: str                  # paper, soft or ink illustration
     image_url: str = ""         # URL to the generated sticker asset
     svg_url: str = ""
     artwork_url: str = ""
     description: str = ""
+    provider: str = "bob"
+    format: str = "svg"
 
 
 class ExtractionResult(BaseModel):

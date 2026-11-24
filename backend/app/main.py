@@ -8,7 +8,7 @@ from app.api.v1 import api_router
 
 app = FastAPI(
     title="Living Scrapbook · Dear Me",
-    description="Create illustrated stickers with IBM Bob and arrange words and stickers into scrapbook pages.",
+    description="Create stickers with OpenAI or IBM Bob and arrange words and stickers into scrapbook pages.",
     version="0.1.0",
 )
 

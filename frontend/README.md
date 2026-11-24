@@ -1,6 +1,6 @@
 # Dear Me · Next.js interface
 
-This interface provides journal entry forms, memory connections, style preferences, Bob sticker generation and living chapters. It connects to the FastAPI backend through `src/lib/api.ts` and manages client state in `src/lib/store.ts`.
+This interface provides journal entry forms, memory connections, style preferences, sticker generation and living chapters. It connects to the FastAPI backend through `src/lib/api.ts` and manages client state in `src/lib/store.ts`.
 
 For the scrapbook composer, page viewer and sticker library, run `./start-local.sh` from the repository root and open **http://127.0.0.1:8000**.
 

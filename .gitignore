@@ -2,6 +2,7 @@ node_modules/
 venv/
 .env
 bobkey.txt
+oaikey.txt
 __pycache__/
 *.pyc
 .next/

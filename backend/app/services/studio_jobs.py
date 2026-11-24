@@ -12,6 +12,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from app.core.config import settings
 from app.services.bob_client import BobError
 from app.services.object_extractor import extract_objects_from_image
+from app.services.openai_stickers import OpenAIError, extract_raster_stickers
 from app.services.svg_stickers import SVGError
 
 _active: dict[str, dict] = {}
@@ -73,12 +74,13 @@ async def _generate(job: dict) -> None:
             def phase(status: str) -> None:
                 job["status"] = status
                 _save(job)
-            result = await extract_objects_from_image(
+            generate = extract_raster_stickers if job["provider"] == "openai" else extract_objects_from_image
+            result = await generate(
                 str(job_root() / job["id"] / "original.png"), job["style"],
                 subject=job["subject"], instructions=job["instructions"], count=job["count"], phase=phase,
             )
             job.update(status="done", result=result.model_dump(), completed_at=datetime.now(timezone.utc).isoformat())
-    except (BobError, SVGError, ValueError) as exc:
+    except (BobError, OpenAIError, SVGError, ValueError) as exc:
         job.update(status="error", error=str(exc))
     except Exception:
         job.update(status="error", error="Try generating your sticker again.")
@@ -87,7 +89,7 @@ async def _generate(job: dict) -> None:
         _active.pop(job["id"], None)
 
 
-async def create_job(content: bytes, *, style: str, subject: str, instructions: str, count: int) -> dict:
+async def create_job(content: bytes, *, style: str, subject: str, instructions: str, count: int, provider: str) -> dict:
     if len(_active) >= 3:
         raise BobError("Three generations are already queued. Wait for one to finish.")
     job_id = uuid4().hex
@@ -99,7 +101,7 @@ async def create_job(content: bytes, *, style: str, subject: str, instructions: 
         folder.rmdir()
         raise
     job = {
-        "id": job_id, "status": "queued", "style": style, "subject": subject,
+        "id": job_id, "status": "queued", "provider": provider, "style": style, "subject": subject,
         "instructions": instructions, "count": count, "created_at": datetime.now(timezone.utc).isoformat(),
         "source_image_url": f"/api/v1/studio/jobs/{job_id}/files/original.png",
     }
