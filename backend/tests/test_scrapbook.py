@@ -127,6 +127,70 @@ class SavedScrapbookTests(unittest.IsolatedAsyncioTestCase):
         response=await self.client.post('/api/v1/scrapbook/entries',json={'date':'2026-11-22','text':'unsafe\u0000text'})
         self.assertEqual(response.status_code,422)
 
+    async def test_entries_saved_before_themes_still_open_and_list(self):
+        entry_id='b'*32
+        folder=Path(self.temp.name)/'scrapbook'/entry_id
+        folder.mkdir(parents=True)
+        saved={
+            'id':entry_id,'title':'An earlier memory','text':'A familiar afternoon.',
+            'date':'2026-11-22','created_at':'2026-11-22T12:00:00+00:00',
+            'page_count':1,'sticker_count':0,'pages':[{'image_url':'/saved-page.png'}],
+        }
+        original=json.dumps(saved)
+        (folder/'entry.json').write_text(original)
+        reopened=await self.client.get('/api/v1/scrapbook/entries/'+entry_id)
+        self.assertEqual(reopened.status_code,200)
+        self.assertEqual(reopened.json()['theme'],'minimal')
+        self.assertEqual(reopened.json()['text'],saved['text'])
+        listing=await self.client.get('/api/v1/scrapbook/entries')
+        self.assertEqual(listing.status_code,200)
+        self.assertEqual(listing.json()[0]['theme_label'],'Minimal')
+        self.assertEqual((folder/'entry.json').read_text(),original)
+
+    async def test_each_page_style_renders_and_persists(self):
+        for theme,details in scrapbook.THEMES.items():
+            with self.subTest(theme=theme):
+                response=await self.client.post('/api/v1/scrapbook/entries',json={
+                    'title':'A little memory','text':'An afternoon worth keeping.',
+                    'date':'2026-11-23','sticker_ids':[f'job:{self.job_id}:0'],'theme':theme,
+                })
+                self.assertEqual(response.status_code,201,response.text)
+                entry=response.json()
+                self.assertEqual(entry['theme'],theme)
+                self.assertEqual(entry['theme_label'],details['label'])
+                for page in entry['pages']:
+                    png=await self.client.get(page['image_url'])
+                    self.assertTrue(png.content.startswith(b'\x89PNG'))
+                    svg=await self.client.get(page['svg_url'])
+                    self.assertIn(details['paper'],svg.text)
+                    for block in page['layout']['blocks']:
+                        self.assertLessEqual(block['y']+block['height'],scrapbook.BOTTOM)
+                reopened=(await self.client.get('/api/v1/scrapbook/entries/'+entry['id'])).json()
+                self.assertEqual(reopened['theme'],theme)
+
+    async def test_bob_writing_draft_and_personal_samples(self):
+        reply={'title':'A rainy Sunday','narrative':'We shared warm noodles while the rain fell.'}
+        with patch.object(type(settings),'read_bob_key',return_value='test-key'), \
+             patch('app.api.v1.scrapbook.cli_path',return_value='/test/bob'), \
+             patch('app.services.scrapbook_writer.run_bob',new=AsyncMock(return_value=(reply,{}))) as provider:
+            for style in ['simple','detailed','literary','li_bai','hemingway','personal']:
+                with self.subTest(style=style):
+                    samples=['A quiet morning. Tea by the window.'] if style=='personal' else []
+                    response=await self.client.post('/api/v1/scrapbook/draft',json={
+                        'phrase':'Sunday rain, warm noodles','style':style,'samples':samples,
+                        'date':'2026-11-23','sticker_labels':['Noodles'],
+                    })
+                    self.assertEqual(response.status_code,200,response.text)
+                    self.assertEqual(response.json(),{'title':reply['title'],'text':reply['narrative']})
+                    self.assertFalse(provider.await_args.kwargs['images'])
+            self.assertEqual(provider.await_count,6)
+            invalid=await self.client.post('/api/v1/scrapbook/draft',json={
+                'phrase':'Sunday rain','style':'personal','samples':[],
+            })
+            self.assertEqual(invalid.status_code,400)
+            self.assertEqual(provider.await_count,6)
+        self.assertEqual((await self.client.get('/api/v1/scrapbook/entries')).json(),[])
+
     async def test_catalog_and_file_route_do_not_accept_user_paths(self):
         catalog=(await self.client.get('/api/v1/scrapbook/stickers')).json()
         self.assertIn(f'job:{self.job_id}:0',[item['id'] for item in catalog])

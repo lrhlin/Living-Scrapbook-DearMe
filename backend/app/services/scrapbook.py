@@ -465,9 +465,12 @@ def get_entry(entry_id: str) -> dict | None:
     if not re.fullmatch(ID_PATTERN, entry_id):
         return None
     try:
-        return json.loads((storage_root() / entry_id / "entry.json").read_text())
+        entry = json.loads((storage_root() / entry_id / "entry.json").read_text())
     except (OSError, ValueError):
         return None
+    entry.setdefault("theme", "minimal")
+    entry.setdefault("theme_label", THEMES[entry["theme"]]["label"])
+    return entry
 
 
 def list_entries() -> list[dict]:
