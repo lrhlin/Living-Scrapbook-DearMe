@@ -24,6 +24,7 @@ ET.register_namespace("", NS)
 PAGE_W, PAGE_H = 900, 1200
 MARGIN, BOTTOM, LINE_HEIGHT = 72, 1110, 31
 ROW_HEIGHT, ROW_GAP, COL_GAP = 252, 22, 28
+THEME_ROW_HEIGHT = {"minimal": 470, "botanical": 490, "celebration": 500, "travel": 460, "cozy": 500, "vintage": 490}
 SAMPLES = {"cat": "Tabby cat", "tree": "Christmas tree", "school": "School building"}
 ID_PATTERN = r"[a-f0-9]{32}"
 THEMES = {
@@ -137,11 +138,12 @@ def wrap_text(text: str, width: float, size: int = 20, title: bool = False) -> l
     return lines
 
 
-def paginate(title: str, text: str, sticker_count: int) -> list[dict]:
+def paginate(title: str, text: str, sticker_count: int, theme_id: str = "minimal") -> list[dict]:
     title_lines = wrap_text(title, PAGE_W - 2 * MARGIN, 33, True)
-    start_y = 143 + len(title_lines) * 40
+    start_y = (168 if theme_id == "celebration" else 143) + len(title_lines) * 40
     lines = wrap_text(text, PAGE_W - 2 * MARGIN - 12)
     rows = [list(range(i, min(i + 2, sticker_count))) for i in range(0, sticker_count, 2)]
+    row_height = THEME_ROW_HEIGHT.get(theme_id, ROW_HEIGHT)
     pages: list[dict] = []
 
     def new_page():
@@ -183,12 +185,12 @@ def paginate(title: str, text: str, sticker_count: int) -> list[dict]:
             if row_index < len(rows):
                 cursor += 18
         if row_index < len(rows):
-            if cursor + ROW_HEIGHT > BOTTOM:
+            if cursor + row_height > BOTTOM:
                 page, cursor = new_page()
             page["blocks"].append({"type": "stickers", "x": MARGIN, "y": cursor,
-                                   "height": ROW_HEIGHT, "indices": rows[row_index]})
+                                   "height": row_height, "indices": rows[row_index]})
             row_index += 1
-            cursor += ROW_HEIGHT + ROW_GAP
+            cursor += row_height + ROW_GAP
     return pages
 
 
@@ -197,6 +199,129 @@ def _node(parent: ET.Element, name: str, attrs: dict | None = None, text: str | 
     if text is not None:
         node.text = text
     return node
+
+
+def _shape(parent: ET.Element, shape: str, x: float, y: float, width: float, height: float,
+           attrs: dict | None = None) -> ET.Element:
+    options = attrs or {}
+    if shape == "ellipse":
+        return _node(parent, "ellipse", {**options, "cx": x + width / 2, "cy": y + height / 2,
+                                           "rx": width / 2, "ry": height / 2})
+    if shape == "diamond":
+        points = f"{x + width / 2},{y} {x + width},{y + height / 2} {x + width / 2},{y + height} {x},{y + height / 2}"
+        return _node(parent, "polygon", {**options, "points": points})
+    if shape == "arch":
+        radius = min(width / 2, height * 0.42)
+        path = f"M{x} {y + height} V{y + radius} Q{x} {y} {x + radius} {y} H{x + width - radius} Q{x + width} {y} {x + width} {y + radius} V{y + height} Z"
+        return _node(parent, "path", {**options, "d": path})
+    radius = 3 if shape == "postcard" else min(22, width * 0.08, height * 0.08)
+    return _node(parent, "rect", {**options, "x": x, "y": y, "width": width, "height": height, "rx": radius})
+
+
+def _clip_shape(parent: ET.Element, shape: str) -> ET.Element:
+    if shape == "ellipse":
+        return _node(parent, "ellipse", {"cx": 0.5, "cy": 0.5, "rx": 0.5, "ry": 0.5})
+    if shape == "diamond":
+        return _node(parent, "polygon", {"points": "0.5,0 1,0.5 0.5,1 0,0.5"})
+    if shape == "arch":
+        return _node(parent, "path", {"d": "M0 1 V0.42 Q0 0 0.42 0 H0.58 Q1 0 1 0.42 V1 Z"})
+    return _node(parent, "rect", {"x": 0, "y": 0, "width": 1, "height": 1,
+                                  "rx": 0.025 if shape == "postcard" else 0.055})
+
+
+def _sticker_placements(theme_id: str, count: int, y: float, height: float) -> list[dict]:
+    if theme_id == "botanical":
+        return ([{"x": 458, "y": y + 4, "width": 266, "height": height - 60, "shape": "ellipse", "rotation": 2}]
+                if count == 1 else [
+                    {"x": 174, "y": y + 18, "width": 230, "height": height - 68, "shape": "ellipse", "rotation": -3},
+                    {"x": 500, "y": y + 3, "width": 240, "height": height - 68, "shape": "diamond", "rotation": 2},
+                ])
+    if theme_id == "celebration":
+        return ([{"x": 240, "y": y, "width": 420, "height": height, "shape": "arch", "rotation": 0}]
+                if count == 1 else [
+                    {"x": 128, "y": y + 5, "width": 350, "height": height - 10, "shape": "arch", "rotation": -2},
+                    {"x": 518, "y": y + 36, "width": 220, "height": height - 150, "shape": "diamond", "rotation": 4},
+                ])
+    if theme_id == "travel":
+        return ([{"x": 126, "y": y + 8, "width": 648, "height": height - 16, "shape": "postcard", "rotation": 0}]
+                if count == 1 else [
+                    {"x": 91, "y": y + 7, "width": 456, "height": height - 14, "shape": "postcard", "rotation": -1},
+                    {"x": 584, "y": y + 28, "width": 164, "height": height - 116, "shape": "ellipse", "rotation": 3},
+                ])
+    if theme_id == "cozy":
+        return ([{"x": 268, "y": y, "width": 364, "height": height, "shape": "polaroid", "rotation": -2}]
+                if count == 1 else [
+                    {"x": 118, "y": y + 2, "width": 324, "height": height - 4, "shape": "polaroid", "rotation": -3},
+                    {"x": 478, "y": y + 20, "width": 236, "height": height - 40, "shape": "polaroid", "rotation": 4},
+                ])
+    if theme_id == "vintage":
+        return ([{"x": 306, "y": y + 1, "width": 288, "height": height - 60, "shape": "ellipse", "rotation": 0}]
+                if count == 1 else [
+                    {"x": 146, "y": y + 12, "width": 236, "height": height - 68, "shape": "ellipse", "rotation": -2},
+                    {"x": 518, "y": y + 12, "width": 236, "height": height - 68, "shape": "ellipse", "rotation": 2},
+                ])
+    return ([{"x": 424, "y": y + 8, "width": 366, "height": height - 16, "shape": "rounded", "rotation": 0}]
+            if count == 1 else [
+                {"x": 88, "y": y + 8, "width": 336, "height": height - 16, "shape": "rounded", "rotation": -1},
+                {"x": 474, "y": y + 8, "width": 336, "height": height - 58, "shape": "diamond", "rotation": 1},
+            ])
+
+
+def _draw_sticker(root: ET.Element, defs: ET.Element, entry: dict, artwork: list[ET.Element],
+                  sticker_index: int, page_index: int, theme: dict, theme_id: str,
+                  placement: dict) -> None:
+    x, y = placement["x"], placement["y"]
+    width, height = placement["width"], placement["height"]
+    rotation = placement.get("rotation", 0)
+    group_attrs = {}
+    if rotation:
+        group_attrs["transform"] = f"rotate({rotation} {x + width / 2} {y + height / 2})"
+    group = _node(root, "g", group_attrs)
+    shape = placement["shape"]
+    if shape == "polaroid":
+        _shape(group, "rounded", x, y, width, height, {"fill": "#fffefa", "stroke": theme["frame"], "stroke-width": 1})
+        ix, iy, iw, ih = x + 13, y + 13, width - 26, height - 56
+        image_shape = "rounded"
+        label_y = y + height - 18
+    elif shape == "postcard":
+        _shape(group, "postcard", x, y, width, height, {"fill": "#fffefa", "stroke": theme["frame"], "stroke-width": 2})
+        ix, iy, iw, ih = x + 11, y + 11, width - 22, height - 36
+        image_shape = "postcard"
+        label_y = y + height - 10
+    else:
+        fill = theme["card1"] if sticker_index % 2 == 0 else theme["card2"]
+        _shape(group, shape, x, y, width, height, {"fill": fill, "stroke": theme["frame"],
+                                                   "stroke-width": 2 if theme_id in {"botanical", "vintage"} else 1})
+        ix, iy, iw, ih = x + 12, y + 12, width - 24, height - 42
+        image_shape = shape
+        label_y = y + height + 18 if shape in {"diamond", "ellipse"} else y + height - 12
+        if theme_id == "vintage" and shape == "ellipse":
+            _shape(group, "ellipse", x + 6, y + 6, width - 12, height - 12,
+                   {"fill": "none", "stroke": theme["frame"], "stroke-width": 1})
+    clip_id = f"page{page_index}-sticker{sticker_index}-clip"
+    clip = _node(defs, "clipPath", {"id": clip_id, "clipPathUnits": "objectBoundingBox"})
+    _clip_shape(clip, image_shape)
+    sticker = deepcopy(artwork[sticker_index])
+    prefix = f"p{page_index}s{sticker_index}-"
+    for element in sticker.iter():
+        if element.get("id"):
+            element.set("id", prefix + element.get("id"))
+        for key, value in list(element.attrib.items()):
+            element.set(key, re.sub(r"url\(\s*['\"]?#([^)'\"\s]+)['\"]?\s*\)",
+                                    lambda match: f"url(#{prefix}{match[1]})", value))
+    sticker.set("x", str(ix))
+    sticker.set("y", str(iy))
+    sticker.set("width", str(iw))
+    sticker.set("height", str(ih))
+    sticker.set("preserveAspectRatio", "xMidYMid meet" if image_shape == "postcard" else "xMidYMid slice")
+    sticker.set("clip-path", f"url(#{clip_id})")
+    group.append(sticker)
+    label = entry["stickers"][sticker_index]["label"]
+    while text_width(label, 13) > width - 24:
+        label = label[:-2].rstrip("…") + "…"
+    _node(group, "text", {"x": x + width / 2, "y": label_y, "font-family": "Arial, sans-serif",
+                          "font-size": 13 if theme_id != "vintage" else 12, "fill": theme["muted"],
+                          "text-anchor": "middle"}, label)
 
 
 def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -> str:
@@ -219,6 +344,7 @@ def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -
         _node(root, "rect", {"x": 44, "y": 44, "width": PAGE_W - 88, "height": PAGE_H - 88,
                               "rx": 18, "fill": "none", "stroke": theme["accent"], "stroke-width": 1,
                               "stroke-dasharray": "2 9"})
+    defs = _node(root, "defs")
     base = {"font-family": "Arial, sans-serif", "fill": theme["muted"]}
     _node(root, "text", {**base, "x": MARGIN, "y": 73, "font-size": 12,
                           "letter-spacing": 2}, "DEAR ME · LITTLE MOMENTS, LOVINGLY KEPT")
@@ -233,9 +359,9 @@ def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -
         _node(root, "text", {**base, "x": PAGE_W / 2, "y": 106, "font-size": 11,
                               "letter-spacing": 2, "text-anchor": "middle"}, "FIELD NOTES · NO. 01")
     elif theme_id == "celebration":
-        _node(root, "path", {"d": "M275 88 Q450 126 625 88", "fill": "none", "stroke": theme["frame"], "stroke-width": 2})
+        _node(root, "path", {"d": "M275 83 Q450 99 625 83", "fill": "none", "stroke": theme["frame"], "stroke-width": 2})
         for x, color in ((300, "#d79672"), (360, "#d4b15f"), (420, "#8ea17e"), (480, "#d79672"), (540, "#d4b15f"), (600, "#8ea17e")):
-            _node(root, "path", {"d": f"M{x} {97 if x in (300, 600) else 105} l18 3 -9 19 -9 -19z", "fill": color})
+            _node(root, "path", {"d": f"M{x} {89 if x in (300, 600) else 94} l18 2 -9 16 -9 -16z", "fill": color})
     elif theme_id == "travel":
         _node(root, "text", {**base, "x": PAGE_W - MARGIN, "y": 73, "font-size": 11,
                               "letter-spacing": 2, "text-anchor": "end"}, "POSTCARD · DEAR ME")
@@ -246,8 +372,6 @@ def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -
         _node(root, "path", {"d": "M660 108 C684 92 706 124 730 108", "fill": "none", "stroke": theme["frame"],
                               "stroke-width": 2, "stroke-dasharray": "4 5"})
     elif theme_id == "cozy":
-        _node(root, "text", {**base, "x": PAGE_W / 2, "y": 83, "font-size": 11,
-                              "letter-spacing": 2, "text-anchor": "middle"}, "A LITTLE NOTE TO KEEP")
         _node(root, "circle", {"cx": 790, "cy": 96, "r": 19, "fill": theme["accent"]})
         _node(root, "path", {"d": "M782 97 C782 89 790 90 791 96 C796 89 804 93 800 100 L791 108Z", "fill": theme["muted"]})
     elif theme_id == "vintage":
@@ -263,18 +387,21 @@ def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -
     title_x = PAGE_W / 2 if centered else MARGIN
     title_attrs = {"x": title_x, "font-family": "Georgia, serif", "font-size": 35 if theme_id in {"cozy", "vintage"} else 33,
                    "fill": theme["title"], "text-anchor": "middle" if centered else "start"}
+    title_top = 154 if theme_id == "celebration" else 137
     if theme_id == "botanical":
         title_attrs["font-style"] = "italic"
     if theme_id == "celebration":
         title_attrs["font-weight"] = 600
     for i, line in enumerate(layout["title_lines"]):
-        _node(root, "text", {**title_attrs, "y": 137 + 40 * i}, line)
+        _node(root, "text", {**title_attrs, "y": title_top + 40 * i}, line)
     date_y = 148 + 40 * (len(layout["title_lines"]) - 1)
     formatted = date.fromisoformat(entry["date"]).strftime("%B %d, %Y")
-    _node(root, "text", {**base, "x": title_x, "y": date_y + 9, "font-size": 13,
+    date_offset = 22 if theme_id == "celebration" else 9
+    _node(root, "text", {**base, "x": title_x, "y": date_y + date_offset, "font-size": 13,
                           "text-anchor": "middle" if centered else "start", "letter-spacing": 0.4}, formatted)
-    _node(root, "line", {"x1": MARGIN, "y1": date_y + 13, "x2": PAGE_W - MARGIN,
-                          "y2": date_y + 20, "stroke": theme["accent"], "stroke-width": 1.5})
+    line_top = date_y + (27 if theme_id == "celebration" else 13)
+    _node(root, "line", {"x1": MARGIN, "y1": line_top, "x2": PAGE_W - MARGIN,
+                          "y2": date_y + (32 if theme_id == "celebration" else 20), "stroke": theme["accent"], "stroke-width": 1.5})
     for block in layout["blocks"]:
         if block["type"] == "text":
             for line_no, line in enumerate(block["lines"]):
@@ -282,41 +409,9 @@ def page_svg(entry: dict, layout: dict, index: int, artwork: list[ET.Element]) -
                                       "font-family": "Arial, sans-serif", "font-size": 20, "fill": theme["text"]}, line)
             continue
         indices = block["indices"]
-        width = (PAGE_W - 2 * MARGIN - COL_GAP) / 2
-        for column, sticker_index in enumerate(indices):
-            x = (PAGE_W - width) / 2 if len(indices) == 1 else MARGIN + column * (width + COL_GAP)
-            card = {"x": x, "y": block["y"], "width": width, "height": ROW_HEIGHT,
-                                  "rx": 24 if theme_id == "cozy" else 4 if theme_id == "vintage" else 15,
-                    "fill": theme["card1"] if sticker_index % 2 == 0 else theme["card2"],
-                    "stroke": theme["frame"] if theme_id in {"travel", "vintage"} else "none",
-                    "stroke-width": 1.5 if theme_id in {"travel", "vintage"} else 0,
-                    "stroke-dasharray": "5 5" if theme_id == "travel" else "none"}
-            _node(root, "rect", card)
-            if theme_id == "vintage":
-                _node(root, "rect", {"x": x + 6, "y": block["y"] + 6, "width": width - 12, "height": ROW_HEIGHT - 12,
-                                      "rx": 2, "fill": "none", "stroke": theme["frame"], "stroke-width": 0.7})
-            if theme_id == "botanical":
-                _node(root, "path", {"d": f"M{x + 13} {block['y'] + 20} q10 -16 18 -5 q-8 13 -18 5",
-                                      "fill": theme["frame"]})
-            sticker = deepcopy(artwork[sticker_index])
-            prefix = f"p{index}s{sticker_index}-"
-            for element in sticker.iter():
-                if element.get("id"):
-                    element.set("id", prefix + element.get("id"))
-                for key, value in list(element.attrib.items()):
-                    element.set(key, re.sub(r"url\(\s*['\"]?#([^)'\"\s]+)['\"]?\s*\)",
-                                            lambda m: f"url(#{prefix}{m[1]})", value))
-            sticker.set("x", str(x + 18))
-            sticker.set("y", str(block["y"] + 10))
-            sticker.set("width", str(width - 36))
-            sticker.set("height", str(ROW_HEIGHT - 44))
-            sticker.set("preserveAspectRatio", "xMidYMid meet")
-            root.append(sticker)
-            label = entry["stickers"][sticker_index]["label"]
-            while text_width(label, 14) > width - 30:
-                label = label[:-2].rstrip("…") + "…"
-            _node(root, "text", {**base, "x": x + width / 2, "y": block["y"] + ROW_HEIGHT - 14,
-                                  "font-size": 14, "text-anchor": "middle"}, label)
+        placements = _sticker_placements(theme_id, len(indices), block["y"], block["height"])
+        for sticker_index, placement in zip(indices, placements):
+            _draw_sticker(root, defs, entry, artwork, sticker_index, index, theme, theme_id, placement)
     _node(root, "line", {"x1": MARGIN, "y1": 1138, "x2": PAGE_W - MARGIN, "y2": 1138, "stroke": theme["accent"]})
     _node(root, "text", {**base, "x": MARGIN, "y": 1164, "font-family": "Georgia, serif", "font-size": 15,
                           "fill": theme["title"]}, "dear me")
@@ -334,7 +429,7 @@ async def create_entry(title: str, text: str, day: date, sticker_ids: list[str],
     resolved = [resolve_sticker(identifier) for identifier in sticker_ids]
     artwork = [validate_svg(path.read_text()) for _, path in resolved]
     title = title.strip() or "A little memory"
-    layouts = paginate(title, text.strip(), len(artwork))
+    layouts = paginate(title, text.strip(), len(artwork), theme_id)
     entry_id = uuid4().hex
     base = f"/api/v1/scrapbook/entries/{entry_id}/files"
     entry = {
